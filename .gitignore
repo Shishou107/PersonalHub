@@ -1,0 +1,61 @@
+# ==========================================
+# .NET / Visual Studio
+# ==========================================
+**/bin/
+**/obj/
+**/publish/
+publish/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.slnx.sqlite
+.runtime/
+.tmp/
+scratch/
+brain/
+.agents/
+.codex/
+.t4/
+
+# Sensitive configuration files containing private keys
+**/appsettings.Development.json
+**/appsettings.Local.json
+
+# ==========================================
+# Node.js / React Native / Expo
+# ==========================================
+**/node_modules/
+.expo/
+dist/
+web-build/
+*.tsbuildinfo
+
+# ==========================================
+# Android / Gradle
+# ==========================================
+.gradle/
+**/.gradle/
+.g4/
+**/.g4/
+.gradle-cache/
+**/.gradle-cache/
+**/build/
+*.apk
+*.aab
+local.properties
+**/local.properties
+*.keystore
+!debug.keystore
+
+# ==========================================
+# OS generated files & Logs
+# ==========================================
+Thumbs.db
+[Dd]esktop.ini
+.DS_Store
+*.log
+*-log.txt
+build-log.txt
+

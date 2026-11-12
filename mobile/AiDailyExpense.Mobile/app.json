@@ -1,0 +1,61 @@
+{
+  "expo": {
+    "name": "Quản lý cuộc sống",
+    "slug": "AiDailyExpense.Mobile",
+    "scheme": "aidailyexpense",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/anhchodaily.jpg",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSSpeechRecognitionUsageDescription": "Cho phep ung dung chuyen giong noi thanh van ban.",
+        "NSMicrophoneUsageDescription": "Cho phep ung dung su dung micro de nhap noi dung bang giong noi.",
+        "NSPhotoLibraryUsageDescription": "Cho phep ung dung chon anh thoi khoa bieu de AI doc lich."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/anhchodaily.jpg",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "permissions": [
+        "RECORD_AUDIO",
+        "android.permission.RECORD_AUDIO",
+        "READ_MEDIA_IMAGES",
+        "READ_EXTERNAL_STORAGE",
+        "POST_NOTIFICATIONS",
+        "android.permission.POST_NOTIFICATIONS",
+        "SCHEDULE_EXACT_ALARM",
+        "android.permission.SCHEDULE_EXACT_ALARM"
+      ],
+      "usesCleartextTraffic": true,
+      "predictiveBackGestureEnabled": false,
+      "package": "com.anonymous.AiDailyExpense.Mobile"
+    },
+    "web": {
+      "favicon": "./assets/anhchodaily.jpg"
+    },
+    "plugins": [
+      "expo-asset",
+      "expo-image-picker",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Cho phep ung dung su dung micro de nhap noi dung bang giong noi.",
+          "speechRecognitionPermission": "Cho phep ung dung chuyen giong noi thanh van ban.",
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox",
+            "com.google.android.tts",
+            "com.google.android.as"
+          ]
+        }
+      ],
+      "expo-notifications",
+      "expo-sqlite"
+    ]
+  }
+}
