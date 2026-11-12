@@ -1,0 +1,153 @@
+========================================================================
+            BẢN ĐỒ CẤU TRÚC CHI TIẾT & HƯỚNG DẪN TỰ HỌC HỆ THỐNG
+                         AI DAILY EXPENSE (FULLSTACK)
+========================================================================
+
+Tài liệu này được biên soạn chi tiết giúp bạn chuyển đổi từ việc ra lệnh cho AI (Vibe Coding) sang nghiên cứu sâu, làm chủ hoàn toàn cấu trúc mã nguồn, nhiệm vụ của từng thư mục, tập tin và cách chúng liên kết với nhau từ Backend đến Frontend Mobile và Android Native.
+
+------------------------------------------------------------------------
+I. TỔNG QUAN CẤU TRÚC THƯ MỤC GỐC
+------------------------------------------------------------------------
+Dự án được phân chia thành 3 phần chính nằm trong thư mục root:
+1. \backend\ - Chứa toàn bộ mã nguồn Backend API viết bằng ASP.NET Core (C#).
+2. \mobile\ - Chứa mã nguồn ứng dụng di động React Native Expo (TypeScript) và Native Android (Kotlin).
+3. \scratch\ & \brain\ - Chứa các tài liệu lưu trữ, ghi chú và các kịch bản chạy thử nghiệm lâm thời.
+
+Dưới đây là chi tiết từng thành phần:
+
+========================================================================
+II. CHI TIẾT PHẦN BACKEND: \backend\AiDailyExpense.Api\
+========================================================================
+Lớp Server nhận yêu cầu từ Mobile, xử lý logic, tính toán báo cáo, bóc tách AI và giao tiếp cơ sở dữ liệu.
+
+1. TẬP TIN CẤU HÌNH & CHẠY CHÍNH (THƯ MỤC GỐC BACKEND)
+   * Program.cs:
+     - Chức năng: Tập tin khởi chạy và cấu hình trung tâm của server. Đăng ký các dịch vụ (Dependency Injection), thiết lập kết nối Database (Entity Framework), cấu hình Middleware xác thực (JWT Bearer Token), kích hoạt CORS (cho phép Mobile kết nối), và định tuyến (Routing).
+   * appsettings.json:
+     - Chức năng: Lưu cấu hình môi trường như chuỗi kết nối Database (ConnectionStrings), khóa bí mật JWT (JwtSettings), cấu hình khóa API cho AI (Gemini/OpenAI), và cài đặt máy chủ Email gửi mã OTP.
+   * AiDailyExpense.Api.csproj:
+     - Chức năng: Tập tin cấu hình dự án .NET. Khai báo phiên bản Target Framework (.NET 9.0) và quản lý các thư viện NuGet được cài đặt (EF Core, JWT, BCrypt...).
+
+2. THƯ MỤC \Models\ (Mô hình Dữ liệu / Thực thể Database)
+   Định nghĩa cấu trúc các bảng trong cơ sở dữ liệu SQL Server:
+   * User.cs: Lưu thông tin người dùng (Id, Email, PasswordHash, Nickname, ngày tạo...).
+   * ExpenseCategory.cs: Danh mục chi tiêu (Ăn uống, Di chuyển, Hóa đơn...).
+   * Expense.cs: Bản ghi chi tiêu cụ thể (Số tiền, Ngày tháng, Ghi chú, CategoryId, UserId).
+   * UserTask.cs: Công việc cần làm (Tên task, hạn hoàn thành, trạng thái, mức độ ưu tiên).
+   * Reminder.cs: Nhắc nhở liên kết với công việc (Ngày giờ nhắc, trạng thái đã gửi hay chưa).
+   * BankTransaction.cs: Bản ghi giao dịch ngân hàng thô nhận được từ SMS hệ thống (chờ duyệt hoặc đã duyệt).
+   * DeviceToken.cs: Token thiết bị di động dùng để gửi thông báo Push Notification.
+   * EmailVerificationCode.cs: Lưu mã OTP xác thực email khi đăng ký/đổi mật khẩu.
+   * StudyDeck.cs, StudyCard.cs, StudyReview.cs: Các thực thể cho tính năng học từ vựng/flashcard (Bộ thẻ, thẻ học, lịch sử đánh giá).
+   * VaultCategory.cs, VaultItem.cs: Các thực thể cho két bảo mật (tài khoản mật khẩu đã mã hóa).
+   * AiCommandLog.cs: Nhật ký các câu lệnh tự nhiên đã gửi lên AI phân tích.
+
+3. THƯ MỤC \Data\ (Giao tiếp Cơ sở dữ liệu)
+   * AppDbContext.cs:
+     - Chức năng: Lớp quản lý chính của Entity Framework Core. Ánh xạ các Model C# thành các bảng tương ứng trong SQL Server, định nghĩa các ràng buộc khóa chính/khóa ngoại, và cấu hình quan hệ giữa các bảng.
+   * DbSeeder.cs:
+     - Chức năng: Khởi tạo dữ liệu mẫu mặc định (như tài khoản test@example.com / mật khẩu 123456, các danh mục chi tiêu mặc định) khi database mới được tạo lập lần đầu.
+
+4. THƯ MỤC \Controllers\ (Tiếp nhận & Định tuyến HTTP Request)
+   Đóng vai trò là các Endpoint tiếp nhận yêu cầu từ ứng dụng di động:
+   * AuthController.cs: `/api/auth` - Đăng ký, đăng nhập, lấy thông tin cá nhân.
+   * ExpensesController.cs: `/api/expenses` - CRUD (Tạo, Đọc, Sửa, Xóa) khoản chi tiêu.
+   * CategoriesController.cs: `/api/categories` - Quản lý các danh mục chi tiêu.
+   * TasksController.cs: `/api/tasks` - Quản lý danh sách công việc cần làm.
+   * RemindersController.cs: `/api/reminders` - Quản lý lịch nhắc nhở.
+   * BankTransactionsController.cs: `/api/bank-transactions` - Nhận tin nhắn SMS ngân hàng, phân tích và xác nhận chuyển thành chi tiêu.
+   * AiController.cs: `/api/ai` - Nhận văn bản hoặc file ghi âm, phân tích ra lệnh chi tiêu/task.
+   * VaultController.cs: `/api/vault` - Quản lý két lưu trữ tài khoản mật khẩu bảo mật.
+   * StudyController.cs: `/api/study` - Quản lý thẻ học Flashcard học tập.
+   * DevicesController.cs: `/api/devices` - Lưu token thiết bị để gửi thông báo.
+
+5. THƯ MỤC \Services\ & \Services\Interfaces\ (Logic Nghiệp vụ)
+   Nơi chứa code xử lý thuật toán thực tế (Controllers sẽ gọi qua Services):
+   * Interfaces/ (IAiService.cs, IAuthService.cs, ...):
+     - Định nghĩa "khế ước" (các phương thức bắt buộc phải có) giúp code lỏng lẻo (loose coupling) và dễ viết Unit Test.
+   * AuthService.cs: Xử lý đăng ký, so khớp hash mật khẩu bằng BCrypt, tạo chuỗi token JWT bảo mật.
+   * ExpenseService.cs: Logic thêm, sửa, xóa chi tiêu, tự động tính toán số dư.
+   * TaskService.cs: Quản lý công việc, tự động tạo nhắc nhở (Reminder) tương ứng khi có hạn chót.
+   * BankTransactionService.cs: Phân tích cú pháp SMS biến động số dư, đối chiếu tìm kiếm danh mục phù hợp.
+   * AiService.cs: Gọi đến API Gemini/OpenAI để phân tích câu nói tự nhiên thành dữ liệu JSON có cấu trúc (ví dụ bóc tách "cơm trưa 35k" thành Số tiền: 35000, Danh mục: Ăn uống).
+   * VaultService.cs: Mã hóa (Encrypt) và giải mã (Decrypt) thông tin nhạy cảm của người dùng trước khi ghi vào database.
+   * StudyService.cs & EmailService.cs & NotificationService.cs: Quản lý học tập, gửi mail OTP và gửi thông báo hệ thống.
+
+6. THƯ MỤC \DTOs\ (Vật mang dữ liệu trao đổi - Data Transfer Objects)
+   Ngăn chặn việc truyền trực tiếp các Model thực thể Database ra ngoài để bảo mật:
+   * Chứa các Class dữ liệu đầu vào (Request) và đầu ra (Response) được tối giản hóa cho từng nghiệp vụ (Ví dụ: `LoginRequest`, `UserDto`, `CreateExpenseRequest`...).
+
+7. THƯ MỤC \Helpers\ (Tiện ích hỗ trợ)
+   * MoneyParser.cs: Bộ phân tích bóc tách các ký tự tiền tệ đặc biệt (như "30k", "5 triệu", "1.5tr", "150,000đ") thành dạng số nguyên thuần túy.
+   * JwtHelper.cs: Helper tạo, cấu hình và ký số cho khóa bảo mật JWT Token.
+   * CurrentUserHelper.cs: Trích xuất thông tin UserId của người dùng hiện tại từ token đính kèm trong request.
+   * DateTimeHelper.cs: Chuẩn hóa định dạng ngày tháng giữa Mobile và SQL Server.
+   * ApiResponse.cs: Định dạng chuẩn hóa mẫu phản hồi JSON đồng nhất cho toàn hệ thống.
+
+========================================================================
+III. CHI TIẾT PHẦN MOBILE: \mobile\AiDailyExpense.Mobile\
+========================================================================
+Lớp giao diện ứng dụng di động React Native kết hợp các tính năng nền của Android.
+
+1. THƯ MỤC NGUỒN CHÍNH \src\
+   * \src\context\AuthContext.tsx:
+     - Chức năng: Quản lý trạng thái đăng nhập toàn cục của app. Lưu JWT Token vào bộ nhớ máy (AsyncStorage) để duy trì phiên làm việc, tự động đăng nhập khi mở app.
+   * \src\navigation\ (Quản lý các màn hình và định tuyến):
+     - RootNavigator.tsx: Kiểm tra trạng thái đăng nhập để quyết định hiển thị màn hình Đăng nhập (Auth) hay màn hình Trang chủ (Main).
+     - AuthNavigator.tsx: Các màn hình xác thực (Đăng nhập, Đăng ký).
+     - MainTabNavigator.tsx: Thanh Tab điều hướng phía dưới chứa các phân hệ chính (Home, Chi tiêu, AI, Ngân hàng, Tiện ích rộng hơn).
+   * \src\screens\ (Các màn hình giao diện cụ thể):
+     - \auth\: `LoginScreen.tsx`, `RegisterScreen.tsx` (Đăng nhập và Đăng ký).
+     - \home\: `HomeScreen.tsx` (Bảng điều khiển dashboard hiển thị tổng hợp nhanh chi tiêu trong ngày, công việc hôm nay).
+     - \expenses\: `ExpenseListScreen.tsx`, `AddExpenseScreen.tsx` (Xem danh sách lịch sử chi tiêu, thêm/sửa/xóa khoản chi tiêu).
+     - \tasks\: `TaskListScreen.tsx` (Quản lý các đầu việc cần làm, tích chọn hoàn thành).
+     - \bank\: `BankTransactionsScreen.tsx` (Giao diện hiển thị tin nhắn ngân hàng tự động bắt được từ Android, nhấn để duyệt nhanh thành chi tiêu thực tế).
+     - \ai\: `AiInputScreen.tsx` (Nhập câu nói hoặc ghi âm trực tiếp, hiển thị kết quả AI tự phân tích và lưu).
+     - \vault\: `VaultListScreen.tsx`, `VaultDetailScreen.tsx` (Quản lý két bảo mật mật khẩu).
+     - \study\: `StudyDeckScreen.tsx`, `StudyCardScreen.tsx` (Học từ vựng qua thẻ Flashcard).
+   * \src\services\ (Kết nối trực tiếp lên API Backend):
+     - api.ts: Tạo thực thể Axios với baseURL và cấu hình Interceptor tự động thêm Header `Authorization: Bearer <token>` vào tất cả request.
+     - authService.ts, expenseService.ts, taskService.ts, aiService.ts, bankTransactionService.ts...: Các hàm gọi API tương ứng tới Controller của Backend.
+   * \src\components\ (Các component giao diện dùng chung):
+     - AppButton.tsx, AppInput.tsx, Card.tsx, TaskItem.tsx... (Các thành phần UI nhỏ giúp giao diện đồng bộ, dễ tái sử dụng và bảo trì).
+   * \src\utils\ (Thư viện tiện ích và cấu hình):
+     - constants.ts: Khai báo cổng API URL (Ví dụ: localhost hoặc IP LAN mạng LAN máy tính của bạn).
+     - theme.ts: Lưu cấu hình mã màu chủ đạo, font chữ đồng bộ cho app.
+     - formatMoney.ts, formatDate.ts: Helper định dạng hiển thị tiền tệ (VND) và ngày tháng.
+     - notificationHelper.ts: Cấu hình đăng ký và hiển thị thông báo cục bộ (Local Notifications).
+     - backgroundPermission.ts: Kiểm tra và yêu cầu quyền chạy ngầm hệ thống.
+
+2. THƯ MỤC NATIVE ANDROID: \mobile\AiDailyExpense.Mobile\android\
+   Nơi chứa mã nguồn gốc của hệ điều hành Android. Toàn bộ các tính năng chạy ngầm tự động nằm tại đây:
+   * Đường dẫn Java/Kotlin nguồn: `android/app/src/main/java/com/anonymous/AiDailyExpense/Mobile/`
+   * MainActivity.kt:
+     - Chức năng: File chạy chính khi app khởi động. Chứa logic yêu cầu người dùng cấp quyền đọc thông báo hệ thống (Notification Access).
+   * NotificationReceiverService.kt:
+     - Chức năng: Dịch vụ chạy ngầm của Android (kế thừa `NotificationListenerService`). Lắng nghe mọi thông báo hệ thống, lọc các tin nhắn biến động số dư từ app ngân hàng hoặc SMS, sau đó đọc JWT Token trong bộ nhớ dùng chung rồi tự gửi ngầm dữ liệu thô về server `/api/bank-transactions/from-notification`.
+   * AiWidgetProvider.kt:
+     - Chức năng: Quản lý tiện ích Widget hiển thị ngoài màn hình nền điện thoại (Home Screen). Vẽ giao diện widget 2x1 chứa nút Mic (Ghi âm) và nút Nhập liệu nhanh.
+   * VoiceWidgetActivity.kt:
+     - Chức năng: Giao diện nhỏ vô hình hiện lên khi nhấn nút Mic trên Widget. Kích hoạt Speech-to-Text để thu âm giọng nói, dịch sang văn bản rồi tự động gửi thẳng lên Backend xử lý.
+   * TextWidgetActivity.kt:
+     - Chức năng: Giao diện nhập liệu nhanh dạng pop-up khi nhấn từ Widget.
+
+========================================================================
+IV. LỘ TRÌNH KHUYÊN DÙNG ĐỂ TỰ NGHIÊN CỨU & LÀM CHỦ CỐT LÕI
+========================================================================
+Để tự lập trình và hiểu toàn bộ cách thức vận hành mà không cần phụ thuộc AI, hãy nghiên cứu theo luồng nghiệp vụ cơ bản:
+
+Luồng 1: Xác thực người dùng (Authentication)
+1. Xem [LoginScreen.tsx](file:///c:/Users/Bin/Documents/ProjectQuanLyCaNhan/mobile/AiDailyExpense.Mobile/src/screens/auth/LoginScreen.tsx) để biết cách Mobile gom dữ liệu Email/Password.
+2. Đọc [authService.ts](file:///c:/Users/Bin/Documents/ProjectQuanLyCaNhan/mobile/AiDailyExpense.Mobile/src/services/authService.ts) gửi request qua Axios.
+3. Đọc [AuthController.cs](file:///c:/Users/Bin/Documents/ProjectQuanLyCaNhan/backend/AiDailyExpense.Api/Controllers/AuthController.cs) và [AuthService.cs](file:///c:/Users/Bin/Documents/ProjectQuanLyCaNhan/backend/AiDailyExpense.Api/Services/AuthService.cs) để hiểu cách mã hóa BCrypt đối chiếu mật khẩu và cách cấp Token JWT.
+4. Xem [AuthContext.tsx](file:///c:/Users/Bin/Documents/ProjectQuanLyCaNhan/mobile/AiDailyExpense.Mobile/src/context/AuthContext.tsx) lưu trữ Token đó vào AsyncStorage trên Mobile như thế nào.
+
+Luồng 2: Nghiệp vụ Chi tiêu (Expenses CRUD)
+1. Đọc [AppDbContext.cs](file:///c:/Users/Bin/Documents/ProjectQuanLyCaNhan/backend/AiDailyExpense.Api/Data/AppDbContext.cs) xem cách bảng `Expenses` được tạo ra.
+2. Đọc [ExpensesController.cs](file:///c:/Users/Bin/Documents/ProjectQuanLyCaNhan/backend/AiDailyExpense.Api/Controllers/ExpensesController.cs) xem cách lấy dữ liệu chi tiêu có bộ lọc ngày tháng.
+3. Xem [ExpenseListScreen.tsx](file:///c:/Users/Bin/Documents/ProjectQuanLyCaNhan/mobile/AiDailyExpense.Mobile/src/screens/expenses/ExpenseListScreen.tsx) hiển thị danh sách từ API lên màn hình.
+
+Luồng 3: Tự động hóa ngầm (Background SMS / Bank Notification Sync)
+1. Xem [NotificationReceiverService.kt](file:///c:/Users/Bin/Documents/ProjectQuanLyCaNhan/mobile/AiDailyExpense.Mobile/android/app/src/main/java/com/anonymous/AiDailyExpense/Mobile/NotificationReceiverService.kt) để xem cách Android nhận tin nhắn và đọc token từ file lưu trữ SQLite.
+2. Xem [BankTransactionsController.cs](file:///c:/Users/Bin/Documents/ProjectQuanLyCaNhan/backend/AiDailyExpense.Api/Controllers/BankTransactionsController.cs) đón nhận SMS và chuyển cho [BankTransactionService.cs](file:///c:/Users/Bin/Documents/ProjectQuanLyCaNhan/backend/AiDailyExpense.Api/Services/BankTransactionService.cs) phân tích thông tin.
+3. Xem [BankTransactionsScreen.tsx](file:///c:/Users/Bin/Documents/ProjectQuanLyCaNhan/mobile/AiDailyExpense.Mobile/src/screens/bank/BankTransactionsScreen.tsx) hiển thị các giao dịch chờ duyệt lên để bạn ấn nút xác nhận chính thức.
