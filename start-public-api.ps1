@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $BackendDir = Join-Path $Root 'backend\AiDailyExpense.Api'
@@ -59,13 +59,8 @@ function Update-MobileApiUrl {
   param([string] $PublicBaseUrl)
 
   $apiUrl = "$PublicBaseUrl/api"
-  $content = Get-Content -Raw $ConstantsFile
-  $updated = [regex]::Replace(
-    $content,
-    "const LOCAL_API_URL = '.*?';",
-    "const LOCAL_API_URL = '$apiUrl';"
-  )
-  Set-Content -LiteralPath $ConstantsFile -Value $updated -Encoding UTF8
+  $envFile = Join-Path $Root 'mobile\AiDailyExpense.Mobile\.env.local'
+  Set-Content -LiteralPath $envFile -Value "EXPO_PUBLIC_API_URL=$apiUrl" -Encoding UTF8
   return $apiUrl
 }
 

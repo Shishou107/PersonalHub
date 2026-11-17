@@ -1,8 +1,9 @@
-import React, { createContext, useState, useEffect, useContext } from 'react';
+import React, { createContext, useState, useEffect, useContext, useCallback } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import authService from '../services/authService';
 import { User } from '../types/auth';
 import { STORAGE_TOKEN_KEY, STORAGE_USER_KEY } from '../utils/constants';
+import { deleteSecureToken, getSecureToken, saveSecureToken } from '../utils/secureStorage';
 
 interface AuthContextType {
   isAuthenticated: boolean;
@@ -23,13 +24,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  useEffect(() => {
-    loadStorageData();
+  const logout = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      setToken(null);
+      setUser(null);
+      await deleteSecureToken(STORAGE_TOKEN_KEY);
+      await AsyncStorage.removeItem(STORAGE_USER_KEY);
+    } catch (e) {
+      console.error('Lỗi khi đăng xuất:', e);
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
-  const loadStorageData = async () => {
+  const loadStorageData = useCallback(async () => {
     try {
-      const storedToken = await AsyncStorage.getItem(STORAGE_TOKEN_KEY);
+      const storedToken = await getSecureToken(STORAGE_TOKEN_KEY);
       const storedUser = await AsyncStorage.getItem(STORAGE_USER_KEY);
 
       if (storedToken && storedUser) {
@@ -59,7 +70,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [logout]);
+
+  useEffect(() => {
+    loadStorageData();
+  }, [loadStorageData]);
 
   const login = async (email: string, password?: string) => {
     setIsLoading(true);
@@ -69,7 +84,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { token: jwtToken, user: userData } = res.data;
         setToken(jwtToken);
         setUser(userData);
-        await AsyncStorage.setItem(STORAGE_TOKEN_KEY, jwtToken);
+        await saveSecureToken(STORAGE_TOKEN_KEY, jwtToken);
         await AsyncStorage.setItem(STORAGE_USER_KEY, JSON.stringify(userData));
       } else {
         throw new Error(res.message || 'Đăng nhập không thành công.');
@@ -92,7 +107,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const { token: jwtToken, user: userData } = res.data;
         setToken(jwtToken);
         setUser(userData);
-        await AsyncStorage.setItem(STORAGE_TOKEN_KEY, jwtToken);
+        await saveSecureToken(STORAGE_TOKEN_KEY, jwtToken);
         await AsyncStorage.setItem(STORAGE_USER_KEY, JSON.stringify(userData));
       } else {
         throw new Error(res.message || 'Đăng ký không thành công.');
@@ -126,20 +141,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     } catch (err) {
       console.error('Lỗi khi tải lại thông tin người dùng:', err);
-    }
-  };
-
-  const logout = async () => {
-    setIsLoading(true);
-    try {
-      setToken(null);
-      setUser(null);
-      await AsyncStorage.removeItem(STORAGE_TOKEN_KEY);
-      await AsyncStorage.removeItem(STORAGE_USER_KEY);
-    } catch (e) {
-      console.error('Lỗi khi đăng xuất:', e);
-    } finally {
-      setIsLoading(false);
     }
   };
 

@@ -55,7 +55,8 @@
         }
       ],
       "expo-notifications",
-      "expo-sqlite"
+      "expo-sqlite",
+      "expo-secure-store"
     ]
   }
 }
