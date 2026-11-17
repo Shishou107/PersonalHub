@@ -25,7 +25,7 @@ const syncPendingReviews = async () => {
       try {
         await api.post(`/study/cards/${item.cardId}/review`, { rating: item.rating });
         studyRepo.removePendingReview(item.id);
-      } catch (err) {
+      } catch {
         // Nếu vẫn chưa có mạng ổn định thì dừng lại chờ lần sau
         break;
       }
@@ -50,7 +50,7 @@ const studyService = {
         syncPendingReviews();
       }
       return response.data;
-    } catch (error) {
+    } catch {
       console.log('[Study] Mất mạng -> Chuyển sang đọc Thống kê từ SQLite');
       // Fallback khi offline: tính sơ bộ từ dữ liệu SQLite cục bộ
       const localDecks = studyRepo.getDecks();
@@ -97,7 +97,7 @@ const studyService = {
         syncPendingReviews();
       }
       return response.data;
-    } catch (error) {
+    } catch {
       console.log('[Study] Mất mạng -> Lấy danh sách Decks từ SQLite');
       const localDecks = studyRepo.getDecks();
       return {
@@ -127,7 +127,7 @@ const studyService = {
         studyRepo.saveCards(response.data.data);
       }
       return response.data;
-    } catch (error) {
+    } catch {
       console.log(`[Study] Mất mạng -> Lấy danh sách Cards của Deck ${deckId} từ SQLite`);
       const localCards = studyRepo.getCards(deckId);
       return {
@@ -158,7 +158,7 @@ const studyService = {
         syncPendingReviews();
       }
       return response.data;
-    } catch (error) {
+    } catch {
       console.log(`[Study] Mất mạng -> Lấy thẻ cần ôn hôm nay từ SQLite`);
       const localTodayCards = studyRepo.getTodayCards(deckId);
       return {
@@ -173,7 +173,7 @@ const studyService = {
     try {
       const response = await api.post<ApiResponse<StudyReviewResult>>(`/study/cards/${id}/review`, { rating });
       return response.data;
-    } catch (error) {
+    } catch {
       console.log(`[Study] Mất mạng -> Lưu lượt chấm điểm [${rating}] của thẻ #${id} vào Hàng đợi SQLite`);
       studyRepo.addPendingReview(id, rating);
 

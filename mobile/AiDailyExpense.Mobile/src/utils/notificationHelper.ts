@@ -123,15 +123,11 @@ export const syncNotifications = async (tasks: Task[]) => {
       // Only schedule if the trigger time is in the future
       if (triggerTime > now) {
         let channelId = 'normal_priority';
-        let soundName = 'normal_priority.mp3';
-        let titlePrefix = 'Nhắc nhở công việc';
 
         if (task.priority === 'High') {
           channelId = 'high_priority';
-          soundName = 'high_priority.wav';
         } else if (task.priority === 'Low') {
           channelId = 'low_priority';
-          soundName = ''; // silent
         }
 
         const triggerDate = new Date(triggerTime);

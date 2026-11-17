@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
@@ -23,7 +24,7 @@ namespace AiDailyExpense.Api.Helpers
             var keyString = jwtSettings["Key"] ?? "CHANGE_THIS_SECRET_KEY_TO_A_LONG_RANDOM_VALUE";
             var issuer = jwtSettings["Issuer"] ?? "AiDailyExpense";
             var audience = jwtSettings["Audience"] ?? "AiDailyExpenseUsers";
-            var expiresMinutes = double.Parse(jwtSettings["ExpiresInMinutes"] ?? "1440");
+            var expiresMinutes = double.Parse(jwtSettings["ExpiresInMinutes"] ?? "1440", CultureInfo.InvariantCulture);
 
             var tokenHandler = new JwtSecurityTokenHandler();
             var key = Encoding.UTF8.GetBytes(keyString);

@@ -44,112 +44,112 @@ namespace AiDailyExpense.Api.Helpers
             switch (rating)
             {
                 case "Forgot":
-                {
-                    var nextEf = Math.Max(MinEaseFactor, ef - 0.2m);
-                    return new SpacedRepetitionResult(
-                        IntervalDays: 0,
-                        EaseFactor: nextEf,
-                        NextReviewDate: now,
-                        Difficulty: "Weak"
-                    );
-                }
-
-                case "Hard":
-                {
-                    var nextEf = Math.Max(MinEaseFactor, ef - 0.15m);
-                    // Review again in 15 minutes to consolidate short-term memory
-                    return new SpacedRepetitionResult(
-                        IntervalDays: 0,
-                        EaseFactor: nextEf,
-                        NextReviewDate: now.AddMinutes(15),
-                        Difficulty: "Weak"
-                    );
-                }
-
-                case "Good":
-                {
-                    // If card is brand new or previously forgot/hard, first Good checkpoint is 12 hours (nửa ngày)
-                    if (currentIntervalDays <= 0)
                     {
+                        var nextEf = Math.Max(MinEaseFactor, ef - 0.2m);
                         return new SpacedRepetitionResult(
                             IntervalDays: 0,
-                            EaseFactor: ef,
-                            NextReviewDate: now.AddHours(12),
-                            Difficulty: "Good"
+                            EaseFactor: nextEf,
+                            NextReviewDate: now,
+                            Difficulty: "Weak"
                         );
                     }
 
-                    // If card already passed the 12h mark: scale interval smoothly without resetting
-                    int nextInterval;
-                    if (currentIntervalDays == 1)
+                case "Hard":
                     {
-                        nextInterval = 3;
-                    }
-                    else
-                    {
-                        nextInterval = Math.Max(currentIntervalDays + 1, (int)Math.Round(currentIntervalDays * 1.5m));
+                        var nextEf = Math.Max(MinEaseFactor, ef - 0.15m);
+                        // Review again in 15 minutes to consolidate short-term memory
+                        return new SpacedRepetitionResult(
+                            IntervalDays: 0,
+                            EaseFactor: nextEf,
+                            NextReviewDate: now.AddMinutes(15),
+                            Difficulty: "Weak"
+                        );
                     }
 
-                    return new SpacedRepetitionResult(
-                        IntervalDays: nextInterval,
-                        EaseFactor: ef,
-                        NextReviewDate: now.AddDays(nextInterval),
-                        Difficulty: nextInterval >= 365 ? "Mastered" : "Good"
-                    );
-                }
+                case "Good":
+                    {
+                        // If card is brand new or previously forgot/hard, first Good checkpoint is 12 hours (nửa ngày)
+                        if (currentIntervalDays <= 0)
+                        {
+                            return new SpacedRepetitionResult(
+                                IntervalDays: 0,
+                                EaseFactor: ef,
+                                NextReviewDate: now.AddHours(12),
+                                Difficulty: "Good"
+                            );
+                        }
+
+                        // If card already passed the 12h mark: scale interval smoothly without resetting
+                        int nextInterval;
+                        if (currentIntervalDays == 1)
+                        {
+                            nextInterval = 3;
+                        }
+                        else
+                        {
+                            nextInterval = Math.Max(currentIntervalDays + 1, (int)Math.Round(currentIntervalDays * 1.5m));
+                        }
+
+                        return new SpacedRepetitionResult(
+                            IntervalDays: nextInterval,
+                            EaseFactor: ef,
+                            NextReviewDate: now.AddDays(nextInterval),
+                            Difficulty: nextInterval >= 365 ? "Mastered" : "Good"
+                        );
+                    }
 
                 case "Easy":
-                {
-                    var nextEf = Math.Min(MaxEaseFactor, ef + 0.15m);
+                    {
+                        var nextEf = Math.Min(MaxEaseFactor, ef + 0.15m);
 
-                    // 7-step optimized expansion progression to 365 days
-                    int nextInterval;
-                    if (currentIntervalDays <= 0)
-                    {
-                        nextInterval = 3;   // Step 1: 3 days
-                    }
-                    else if (currentIntervalDays < 7)
-                    {
-                        nextInterval = 7;   // Step 2: 7 days (1 week)
-                    }
-                    else if (currentIntervalDays < 16)
-                    {
-                        nextInterval = 16;  // Step 3: 16 days (~2 weeks)
-                    }
-                    else if (currentIntervalDays < 35)
-                    {
-                        nextInterval = 35;  // Step 4: 35 days (~1 month)
-                    }
-                    else if (currentIntervalDays < 80)
-                    {
-                        nextInterval = 80;  // Step 5: 80 days (~2.5 months)
-                    }
-                    else if (currentIntervalDays < 180)
-                    {
-                        nextInterval = 180; // Step 6: 180 days (~6 months)
-                    }
-                    else
-                    {
-                        nextInterval = 365; // Step 7: 365 days (1 year - Mastered)
-                    }
+                        // 7-step optimized expansion progression to 365 days
+                        int nextInterval;
+                        if (currentIntervalDays <= 0)
+                        {
+                            nextInterval = 3;   // Step 1: 3 days
+                        }
+                        else if (currentIntervalDays < 7)
+                        {
+                            nextInterval = 7;   // Step 2: 7 days (1 week)
+                        }
+                        else if (currentIntervalDays < 16)
+                        {
+                            nextInterval = 16;  // Step 3: 16 days (~2 weeks)
+                        }
+                        else if (currentIntervalDays < 35)
+                        {
+                            nextInterval = 35;  // Step 4: 35 days (~1 month)
+                        }
+                        else if (currentIntervalDays < 80)
+                        {
+                            nextInterval = 80;  // Step 5: 80 days (~2.5 months)
+                        }
+                        else if (currentIntervalDays < 180)
+                        {
+                            nextInterval = 180; // Step 6: 180 days (~6 months)
+                        }
+                        else
+                        {
+                            nextInterval = 365; // Step 7: 365 days (1 year - Mastered)
+                        }
 
-                    return new SpacedRepetitionResult(
-                        IntervalDays: nextInterval,
-                        EaseFactor: nextEf,
-                        NextReviewDate: now.AddDays(nextInterval),
-                        Difficulty: nextInterval >= 365 ? "Mastered" : "Easy"
-                    );
-                }
+                        return new SpacedRepetitionResult(
+                            IntervalDays: nextInterval,
+                            EaseFactor: nextEf,
+                            NextReviewDate: now.AddDays(nextInterval),
+                            Difficulty: nextInterval >= 365 ? "Mastered" : "Easy"
+                        );
+                    }
 
                 default:
-                {
-                    return new SpacedRepetitionResult(
-                        IntervalDays: Math.Max(1, currentIntervalDays),
-                        EaseFactor: ef,
-                        NextReviewDate: now.AddDays(Math.Max(1, currentIntervalDays)),
-                        Difficulty: "Good"
-                    );
-                }
+                    {
+                        return new SpacedRepetitionResult(
+                            IntervalDays: Math.Max(1, currentIntervalDays),
+                            EaseFactor: ef,
+                            NextReviewDate: now.AddDays(Math.Max(1, currentIntervalDays)),
+                            Difficulty: "Good"
+                        );
+                    }
             }
         }
     }

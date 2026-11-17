@@ -12,9 +12,9 @@ namespace AiDailyExpense.Api.Models
         public bool IsEmailVerified { get; set; }
         public DateTime? EmailVerifiedAt { get; set; }
         public string? VaultPinHash { get; set; }
-        public decimal CashBalance { get; set; } = 0;
-        public decimal BankBalance { get; set; } = 0;
-        public bool HasInitializedBalance { get; set; } = false;
+        public decimal CashBalance { get; set; }
+        public decimal BankBalance { get; set; }
+        public bool HasInitializedBalance { get; set; }
         public string TimeZone { get; set; } = "Asia/Ho_Chi_Minh";
         public bool IsActive { get; set; } = true;
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

@@ -39,3 +39,9 @@ dotnet_naming_symbols.interface.applicable_kinds = interface
 dotnet_naming_style.prefix_with_i.required_prefix = I
 dotnet_naming_style.prefix_with_i.capitalization = pascal_case
 
+# Unit test conventions (allow underscores in test method names)
+[**/*Tests.cs]
+dotnet_diagnostic.CA1707.severity = none
+dotnet_diagnostic.CA1861.severity = none
+
+
