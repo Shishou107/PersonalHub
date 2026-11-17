@@ -8,7 +8,7 @@
 [![Kotlin](https://img.shields.io/badge/Kotlin-Android%20Native-orange.svg)](https://kotlinlang.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
 [![Database](https://img.shields.io/badge/Database-SQL%20Server%20%7C%20SQLite-red.svg)]()
-[![Tests](https://img.shields.io/badge/Unit%20Tests-xUnit%20(29%20passed)-brightgreen.svg)]()
+[![Tests](https://img.shields.io/badge/Unit%20Tests-xUnit%20(40%20passed)-brightgreen.svg)]()
 
 ---
 
@@ -138,21 +138,26 @@ ProjectQuanLyCaNhan/
 
 ---
 
-## 🧪 5. KIỂM THỬ PHẦN MỀM (UNIT TESTS)
+## 🧪 5. KIỂM THỬ PHẦN MỀM (UNIT TESTS) & THUẬT TOÁN SM-2
 
-Dự án bao gồm bộ kiểm thử tự động với **29 test cases** bao phủ các logic nghiệp vụ quan trọng nhất:
-* ✅ **MoneyParser:** Xử lý chính xác các biến thể tiền tệ (`40k`, `1.5tr`, `10 triệu`, `50.000đ`, `-120,000VND`).
-* ✅ **Spaced Repetition (SM-2):** Đảm bảo hệ số dễ (`EaseFactor`) và chu kỳ lặp lại tăng/giảm chính xác theo phản hồi của người học.
-* ✅ **Security & AES-GCM:** Kiểm thử chu trình mã hóa và giải mã dữ liệu két sắt với xác thực AuthTag.
-* ✅ **DateTime & Timezone:** Đảm bảo chuyển đổi chính xác giữa giờ UTC và giờ địa phương Việt Nam (`Asia/Ho_Chi_Minh` / `UTC+7`).
+Dự án bao gồm bộ kiểm thử tự động với **40 test cases** chạy trên xUnit (.NET 9) bao phủ các logic nghiệp vụ quan trọng nhất:
+* ✅ **Spaced Repetition Algorithm (SM-2 tối ưu hóa):**
+  - **Thuật toán tăng cấp 7 bước cho thẻ Easy**: $3 \rightarrow 7 \rightarrow 16 \rightarrow 35 \rightarrow 80 \rightarrow 180 \rightarrow 365$ ngày (Mastered).
+  - **Mốc vi mô trong ngày**: `Good` khởi điểm sau **12 giờ** (nửa ngày); `Hard` sau **15 phút**; `Forgot` ôn lại ngay lập tức.
+  - **Bảo toàn tiến trình**: Khi thẻ đã đạt interval cao mà người dùng đánh giá `Good`, khoảng cách ngày tiếp tục mở rộng đều đặn ($\times 1.5$) chứ **không bao giờ bị reset về 0**.
+  - **Đồng bộ song phương**: Cùng một logic thuật toán được hiện thực hóa đồng bộ trên cả **Backend C#** (`SpacedRepetitionAlgorithm.cs`) lẫn **Mobile SQLite Offline** (`spacedRepetition.ts` & `studyRepo.ts`).
+* ✅ **MoneyParser (12 test cases):** Xử lý chính xác các biến thể tiền tệ tiếng Việt (`40k`, `1.5tr`, `10 triệu`, `50.000đ`, `-120,000VND`, loại trừ số tài khoản).
+* ✅ **Security & AES-GCM (2 test cases):** Kiểm thử chu trình mã hóa và giải mã dữ liệu két sắt với xác thực AuthTag 128-bit và băm mật khẩu BCrypt.
+* ✅ **DateTime & Timezone (4 test cases):** Đảm bảo chuyển đổi chính xác giữa giờ UTC và giờ địa phương Việt Nam (`Asia/Ho_Chi_Minh` / `UTC+7`).
 
 ### Cách chạy Unit Tests:
 ```bash
 dotnet test AiDailyExpense.slnx
 ```
-*Kết quả mẫu:*
+*Kết quả:*
 ```text
-Passed!  - Failed: 0, Passed: 29, Skipped: 0, Total: 29, Duration: 642 ms
+Passed!  - Failed: 0, Passed: 40, Skipped: 0, Total: 40, Duration: 407 ms - AiDailyExpense.Tests.dll (net9.0)
+```
 ```
 
 ---

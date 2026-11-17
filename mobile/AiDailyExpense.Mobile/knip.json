@@ -4,3 +4,4 @@
   "project": ["src/**/*.{ts,tsx}"],
   "ignore": ["android/**", ".expo/**", "node_modules/**"]
 }
+

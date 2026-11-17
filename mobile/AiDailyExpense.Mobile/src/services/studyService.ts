@@ -10,6 +10,7 @@ import {
   StudyStats,
 } from '../types/study';
 import { studyRepo } from '../database/studyRepo';
+import { calculateNextReviewOffline } from '../utils/spacedRepetition';
 
 /**
  * Tự động gửi bù các lượt ôn tập Offline lên Server khi có kết nối mạng
@@ -176,16 +177,23 @@ const studyService = {
       console.log(`[Study] Mất mạng -> Lưu lượt chấm điểm [${rating}] của thẻ #${id} vào Hàng đợi SQLite`);
       studyRepo.addPendingReview(id, rating);
 
-      // Trả về kết quả tạm thời để UI tiếp tục chuyển sang thẻ tiếp theo mượt mà
+      const localCard = studyRepo.getCards().find((c) => c.id === id);
+      const calc = calculateNextReviewOffline(
+        rating,
+        localCard?.intervalDays || 0,
+        localCard?.easeFactor || 2.5
+      );
+
+      // Trả về kết quả tính toán ngoại tuyến đồng bộ chính xác với thuật toán SM-2
       return {
         success: true,
         message: 'Đã lưu kết quả ôn tập ngoại tuyến (sẽ đồng bộ khi có mạng)',
         data: {
           cardId: id,
           rating,
-          intervalDays: 1,
-          nextReviewDate: new Date(Date.now() + 86400000).toISOString(),
-          reviewCount: 1,
+          intervalDays: calc.intervalDays,
+          nextReviewDate: calc.nextReviewDate,
+          reviewCount: (localCard?.reviewCount || 0) + 1,
         },
       };
     }

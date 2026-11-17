@@ -1,5 +1,6 @@
 import { db } from './db';
 import { StudyCard, StudyDeck, StudyRating } from '../types/study';
+import { calculateNextReviewOffline } from '../utils/spacedRepetition';
 
 export interface PendingReview {
   id: number;
@@ -147,10 +148,37 @@ export const studyRepo = {
         'INSERT INTO local_pending_reviews (cardId, rating, createdAt) VALUES (?, ?, ?)',
         [cardId, rating, new Date().toISOString()]
       );
-      // Cập nhật tạm thời lastRating trong local card
+
+      const existing = (db.getFirstSync(
+        'SELECT intervalDays, easeFactor, reviewCount FROM local_study_cards WHERE id = ?',
+        [cardId]
+      ) || {}) as { intervalDays?: number; easeFactor?: number; reviewCount?: number };
+
+      const calc = calculateNextReviewOffline(
+        rating,
+        existing.intervalDays || 0,
+        existing.easeFactor || 2.5
+      );
+
       db.runSync(
-        'UPDATE local_study_cards SET lastRating = ?, reviewCount = reviewCount + 1, lastReviewDate = ? WHERE id = ?',
-        [rating, new Date().toISOString(), cardId]
+        `UPDATE local_study_cards 
+         SET lastRating = ?, 
+             intervalDays = ?, 
+             easeFactor = ?, 
+             nextReviewDate = ?, 
+             difficulty = ?, 
+             reviewCount = reviewCount + 1, 
+             lastReviewDate = ? 
+         WHERE id = ?`,
+        [
+          rating,
+          calc.intervalDays,
+          calc.easeFactor,
+          calc.nextReviewDate,
+          calc.difficulty,
+          new Date().toISOString(),
+          cardId,
+        ]
       );
     } catch (e) {
       console.error('[studyRepo] Lỗi khi lưu Pending Review:', e);

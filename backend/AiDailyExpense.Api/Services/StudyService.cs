@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using AiDailyExpense.Api.Data;
 using AiDailyExpense.Api.DTOs.Study;
+using AiDailyExpense.Api.Helpers;
 using AiDailyExpense.Api.Models;
 using AiDailyExpense.Api.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -190,7 +191,6 @@ namespace AiDailyExpense.Api.Services
 
         public async Task<StudyReviewResultDto> ReviewCardAsync(Guid userId, long cardId, ReviewStudyCardRequest request)
         {
-            var rating = NormalizeRating(request.Rating);
             var card = await _context.StudyCards
                 .Include(c => c.Deck)
                 .Include(c => c.StudyReviews)
@@ -203,23 +203,24 @@ namespace AiDailyExpense.Api.Services
 
             var latest = card.StudyReviews.OrderByDescending(r => r.ReviewDate).FirstOrDefault();
             var oldInterval = latest?.IntervalDays ?? 0;
-            var intervalDays = CalculateIntervalDays(rating, oldInterval);
-            var easeFactor = CalculateEaseFactor(rating, latest?.EaseFactor ?? 2.5m);
+            var oldEaseFactor = latest?.EaseFactor ?? SpacedRepetitionAlgorithm.DefaultEaseFactor;
+            var calc = SpacedRepetitionAlgorithm.CalculateNextReview(request.Rating, oldInterval, oldEaseFactor, DateTime.UtcNow);
+
             var reviewCount = (latest?.ReviewCount ?? 0) + 1;
-            var nextReviewDate = CalculateNextReviewDate(rating, intervalDays);
+            var rating = SpacedRepetitionAlgorithm.NormalizeRating(request.Rating);
 
             var review = new StudyReview
             {
                 CardId = card.Id,
                 ReviewDate = DateTime.UtcNow,
                 Rating = rating,
-                NextReviewDate = nextReviewDate,
-                IntervalDays = intervalDays,
-                EaseFactor = easeFactor,
+                NextReviewDate = calc.NextReviewDate,
+                IntervalDays = calc.IntervalDays,
+                EaseFactor = calc.EaseFactor,
                 ReviewCount = reviewCount
             };
 
-            card.Difficulty = rating == "Forgot" || rating == "Hard" ? "Weak" : rating;
+            card.Difficulty = calc.Difficulty;
             card.UpdatedAt = DateTime.UtcNow;
 
             _context.StudyReviews.Add(review);
@@ -229,8 +230,8 @@ namespace AiDailyExpense.Api.Services
             {
                 CardId = card.Id,
                 Rating = rating,
-                IntervalDays = intervalDays,
-                NextReviewDate = nextReviewDate,
+                IntervalDays = calc.IntervalDays,
+                NextReviewDate = calc.NextReviewDate,
                 ReviewCount = reviewCount
             };
         }
@@ -367,53 +368,6 @@ namespace AiDailyExpense.Api.Services
                 "Vocabulary" or "Grammar" or "QA" => value,
                 _ => "Vocabulary"
             };
-        }
-
-        private static string NormalizeRating(string value)
-        {
-            return value switch
-            {
-                "Forgot" or "Hard" or "Good" or "Easy" => value,
-                _ => "Good"
-            };
-        }
-
-        private static int CalculateIntervalDays(string rating, int oldInterval)
-        {
-            return rating switch
-            {
-                "Forgot" => 0,
-                "Hard" => 0,
-                "Good" => 0,
-                "Easy" => oldInterval == 0 ? 5 : oldInterval * 3,
-                _ => 0
-            };
-        }
-
-        private static DateTime CalculateNextReviewDate(string rating, int intervalDays)
-        {
-            var now = DateTime.UtcNow;
-            return rating switch
-            {
-                "Forgot" => now,
-                "Hard" => now.AddMinutes(15),
-                "Good" => now.AddHours(8),
-                "Easy" => now.AddDays(intervalDays),
-                _ => now.AddHours(8)
-            };
-        }
-
-        private static decimal CalculateEaseFactor(string rating, decimal oldEaseFactor)
-        {
-            var next = rating switch
-            {
-                "Forgot" => oldEaseFactor - 0.2m,
-                "Hard" => oldEaseFactor - 0.1m,
-                "Easy" => oldEaseFactor + 0.15m,
-                _ => oldEaseFactor
-            };
-
-            return Math.Max(1.3m, Math.Min(3.0m, next));
         }
 
         private async Task<int> CalculateStreakDaysAsync(Guid userId)

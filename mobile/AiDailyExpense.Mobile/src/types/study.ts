@@ -36,6 +36,7 @@ export interface StudyCard {
   lastReviewDate?: string;
   nextReviewDate?: string;
   intervalDays: number;
+  easeFactor?: number;
   reviewCount: number;
   lastRating?: StudyRating;
 }
