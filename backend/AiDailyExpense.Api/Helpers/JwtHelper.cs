@@ -21,7 +21,11 @@ namespace AiDailyExpense.Api.Helpers
         public string GenerateToken(User user)
         {
             var jwtSettings = _configuration.GetSection("Jwt");
-            var keyString = jwtSettings["Key"] ?? "CHANGE_THIS_SECRET_KEY_TO_A_LONG_RANDOM_VALUE";
+            var keyString = jwtSettings["Key"];
+            if (string.IsNullOrWhiteSpace(keyString))
+            {
+                throw new InvalidOperationException("Jwt:Key chưa được cấu hình.");
+            }
             var issuer = jwtSettings["Issuer"] ?? "AiDailyExpense";
             var audience = jwtSettings["Audience"] ?? "AiDailyExpenseUsers";
             var expiresMinutes = double.Parse(jwtSettings["ExpiresInMinutes"] ?? "1440", CultureInfo.InvariantCulture);

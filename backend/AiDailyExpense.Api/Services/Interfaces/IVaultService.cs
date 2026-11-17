@@ -12,5 +12,6 @@ namespace AiDailyExpense.Api.Services.Interfaces
         Task SetPinAsync(Guid userId, SetVaultPinRequest request);
         Task RequestRevealCodeAsync(Guid userId);
         Task<RevealedVaultItemDto> RevealItemAsync(Guid userId, long id, RevealVaultItemRequest request);
+        Task<VaultMigrationResult> ReEncryptAllAsync();
     }
 }

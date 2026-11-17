@@ -54,8 +54,17 @@ builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
 
 // Configure JWT Authentication
+if (builder.Environment.IsProduction())
+{
+    SecurityConfigValidator.ValidateProductionConfiguration(builder.Configuration);
+}
+
 var jwtSettings = builder.Configuration.GetSection("Jwt");
-var keyString = jwtSettings["Key"] ?? "CHANGE_THIS_SECRET_KEY_TO_A_LONG_RANDOM_VALUE_THAT_HAS_AT_LEAST_32_CHARACTERS_FOR_HMACSHA256_SIGNATURE_VERIFICATION";
+var keyString = jwtSettings["Key"];
+if (string.IsNullOrWhiteSpace(keyString))
+{
+    throw new InvalidOperationException("Jwt:Key chưa được cấu hình. Vui lòng cấu hình Jwt:Key qua appsettings, user-secrets hoặc biến môi trường Jwt__Key.");
+}
 var key = Encoding.UTF8.GetBytes(keyString);
 
 builder.Services.AddAuthentication(options =>
@@ -279,6 +288,16 @@ BEGIN
 END
 ");
         await DbSeeder.SeedAsync(context);
+
+        if (app.Configuration.GetValue<bool>("Vault:ReEncryptOnStartup"))
+        {
+            var vaultService = services.GetRequiredService<IVaultService>();
+            var logger = services.GetRequiredService<ILogger<Program>>();
+            logger.LogInformation("Vault:ReEncryptOnStartup kích hoạt: Bắt đầu re-encrypt toàn bộ dữ liệu két...");
+            var migrationResult = await vaultService.ReEncryptAllAsync();
+            logger.LogInformation("Re-encrypt hoàn tất: Tổng {Total}, Thành công {Succeeded}, Thất bại {Failed}.",
+                migrationResult.TotalItems, migrationResult.SucceededCount, migrationResult.FailedCount);
+        }
     }
     catch (Exception ex)
     {

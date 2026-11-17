@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 using AiDailyExpense.Api.Data;
 using AiDailyExpense.Api.DTOs.Vault;
+using AiDailyExpense.Api.Helpers;
 using AiDailyExpense.Api.Models;
 using AiDailyExpense.Api.Services.Interfaces;
 using Microsoft.EntityFrameworkCore;
@@ -209,11 +210,60 @@ namespace AiDailyExpense.Api.Services
             return new RevealedVaultItemDto
             {
                 VaultItemId = item.VaultItemId,
-                Password = Decrypt(item.EncryptedPassword, item.PasswordNonce, item.PasswordAuthTag),
+                Password = Decrypt(item.EncryptedPassword, item.PasswordNonce, item.PasswordAuthTag, item.VaultItemId),
                 Notes = item.EncryptedNotes == null || item.NotesNonce == null
                     ? null
-                    : Decrypt(item.EncryptedNotes, item.NotesNonce, item.NotesAuthTag)
+                    : Decrypt(item.EncryptedNotes, item.NotesNonce, item.NotesAuthTag, item.VaultItemId)
             };
+        }
+
+        public async Task<VaultMigrationResult> ReEncryptAllAsync()
+        {
+            var items = await _context.VaultItems.ToListAsync();
+            var result = new VaultMigrationResult
+            {
+                TotalItems = items.Count
+            };
+
+            foreach (var item in items)
+            {
+                try
+                {
+                    var plainPassword = Decrypt(item.EncryptedPassword, item.PasswordNonce, item.PasswordAuthTag, item.VaultItemId);
+                    string? plainNotes = null;
+                    if (item.EncryptedNotes != null && item.NotesNonce != null)
+                    {
+                        plainNotes = Decrypt(item.EncryptedNotes, item.NotesNonce, item.NotesAuthTag, item.VaultItemId);
+                    }
+
+                    var newPassword = Encrypt(plainPassword);
+                    item.EncryptedPassword = newPassword.Cipher;
+                    item.PasswordNonce = newPassword.Nonce;
+                    item.PasswordAuthTag = newPassword.Tag;
+
+                    if (plainNotes != null)
+                    {
+                        var newNotes = Encrypt(plainNotes);
+                        item.EncryptedNotes = newNotes.Cipher;
+                        item.NotesNonce = newNotes.Nonce;
+                        item.NotesAuthTag = newNotes.Tag;
+                    }
+
+                    result.SucceededCount++;
+                }
+                catch (Exception)
+                {
+                    result.FailedCount++;
+                    result.FailedItemIds.Add(item.VaultItemId);
+                }
+            }
+
+            if (result.SucceededCount > 0)
+            {
+                await _context.SaveChangesAsync();
+            }
+
+            return result;
         }
 
         private async Task ConsumeVaultCodeAsync(Guid userId, string code)
@@ -244,11 +294,43 @@ namespace AiDailyExpense.Api.Services
             return (cipher, nonce, tag);
         }
 
-        private string Decrypt(byte[] cipher, byte[] nonce, byte[]? tag)
+        private string Decrypt(byte[] cipher, byte[] nonce, byte[]? tag, long vaultItemId)
         {
             if (tag == null || tag.Length == 0) return string.Empty;
+
+            // 1. Try primary master key
+            try
+            {
+                var masterKey = GetMasterKey();
+                return DecryptWithKey(cipher, nonce, tag, masterKey);
+            }
+            catch (CryptographicException)
+            {
+                // Fallback to legacy keys
+            }
+
+            // 2. Try legacy keys (decrypt-only migration support)
+            var legacyKeys = GetLegacyKeys();
+            foreach (var legacyKey in legacyKeys)
+            {
+                try
+                {
+                    return DecryptWithKey(cipher, nonce, tag, legacyKey);
+                }
+                catch (CryptographicException)
+                {
+                    // Continue to next legacy key
+                }
+            }
+
+            // Both primary and legacy keys failed
+            throw new VaultDecryptionException(vaultItemId, "Không thể giải mã dữ liệu két, có thể do thay đổi khoá mã hoá.");
+        }
+
+        private static string DecryptWithKey(byte[] cipher, byte[] nonce, byte[] tag, byte[] key)
+        {
             var plainBytes = new byte[cipher.Length];
-            using var aes = new AesGcm(GetMasterKey(), 16);
+            using var aes = new AesGcm(key, 16);
             aes.Decrypt(nonce, cipher, tag, plainBytes);
             return Encoding.UTF8.GetString(plainBytes);
         }
@@ -258,13 +340,53 @@ namespace AiDailyExpense.Api.Services
             var secret = _configuration["Vault:MasterKey"];
             if (string.IsNullOrWhiteSpace(secret))
             {
-                secret = _configuration["Jwt:Key"];
+                throw new InvalidOperationException("Vault:MasterKey chưa được cấu hình.");
             }
-            if (string.IsNullOrWhiteSpace(secret))
+
+            try
             {
-                secret = "AiDailyExpense_DefaultSecureVaultEncryptionMasterKey_2026!";
+                var keyBytes = Convert.FromBase64String(secret.Trim());
+                if (keyBytes.Length == 32)
+                {
+                    return keyBytes;
+                }
             }
-            return SHA256.HashData(Encoding.UTF8.GetBytes(secret));
+            catch (FormatException)
+            {
+            }
+
+            throw new InvalidOperationException("Vault:MasterKey phải là chuỗi Base64 hợp lệ đại diện cho đúng 32 bytes (256-bit AES key).");
+        }
+
+        private List<byte[]> GetLegacyKeys()
+        {
+            var legacySecrets = _configuration["Vault:LegacySecrets"];
+            if (string.IsNullOrWhiteSpace(legacySecrets))
+            {
+                return new List<byte[]>();
+            }
+
+            var keys = new List<byte[]>();
+            var parts = legacySecrets.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+            foreach (var part in parts)
+            {
+                try
+                {
+                    var bytes = Convert.FromBase64String(part);
+                    if (bytes.Length == 32)
+                    {
+                        keys.Add(bytes);
+                        continue;
+                    }
+                }
+                catch (FormatException)
+                {
+                }
+
+                keys.Add(SHA256.HashData(Encoding.UTF8.GetBytes(part)));
+            }
+
+            return keys;
         }
 
         private static VaultItemDto ToDto(VaultItem item)

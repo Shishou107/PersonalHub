@@ -104,6 +104,10 @@ namespace AiDailyExpense.Api.Controllers
                 var result = await _vaultService.RevealItemAsync(userId, id, request);
                 return Ok(ApiResponse<RevealedVaultItemDto>.Ok(result, "Đã mở khóa mật khẩu."));
             }
+            catch (VaultDecryptionException)
+            {
+                return BadRequest(ApiResponse<RevealedVaultItemDto>.Fail("Không giải mã được dữ liệu két, có thể do thay đổi khoá mã hoá."));
+            }
             catch (UnauthorizedAccessException ex)
             {
                 return Unauthorized(ApiResponse<RevealedVaultItemDto>.Fail(ex.Message));
@@ -120,6 +124,13 @@ namespace AiDailyExpense.Api.Controllers
             {
                 return StatusCode(500, ApiResponse<RevealedVaultItemDto>.Fail("Có lỗi xảy ra khi mở khóa mật khẩu.", new List<string> { ex.Message }));
             }
+        }
+
+        [HttpPost("admin/re-encrypt")]
+        public async Task<IActionResult> ReEncryptAll()
+        {
+            var result = await _vaultService.ReEncryptAllAsync();
+            return Ok(ApiResponse<VaultMigrationResult>.Ok(result, "Re-encrypt dữ liệu két hoàn tất."));
         }
     }
 }

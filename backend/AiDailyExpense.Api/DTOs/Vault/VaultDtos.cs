@@ -79,4 +79,12 @@ namespace AiDailyExpense.Api.DTOs.Vault
         public string Password { get; set; } = string.Empty;
         public string? Notes { get; set; }
     }
+
+    public class VaultMigrationResult
+    {
+        public int TotalItems { get; set; }
+        public int SucceededCount { get; set; }
+        public int FailedCount { get; set; }
+        public List<long> FailedItemIds { get; set; } = new();
+    }
 }
