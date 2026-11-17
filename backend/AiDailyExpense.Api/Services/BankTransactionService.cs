@@ -187,39 +187,51 @@ namespace AiDailyExpense.Api.Services
 
         public async Task<ExpenseDto> ConfirmTransactionAsync(Guid userId, long bankTransactionId, ConfirmBankTransactionRequest request)
         {
-            var tx = await _context.BankTransactions
-                .FirstOrDefaultAsync(t => t.UserId == userId && t.BankTransactionId == bankTransactionId);
-
-            if (tx == null)
+            var executionStrategy = _context.Database.CreateExecutionStrategy();
+            return await executionStrategy.ExecuteAsync(async () =>
             {
-                throw new KeyNotFoundException("Không tìm thấy giao dịch ngân hàng.");
-            }
+                var tx = await _context.BankTransactions
+                    .FirstOrDefaultAsync(t => t.UserId == userId && t.BankTransactionId == bankTransactionId);
 
-            if (tx.IsConfirmed)
-            {
-                throw new InvalidOperationException("Giao dịch này đã được xác nhận trước đó.");
-            }
+                if (tx == null)
+                {
+                    throw new KeyNotFoundException("Không tìm thấy giao dịch ngân hàng.");
+                }
 
-            int? categoryId = request.CategoryId ?? tx.CategoryId;
+                if (tx.IsConfirmed)
+                {
+                    throw new InvalidOperationException("Giao dịch này đã được xác nhận trước đó.");
+                }
 
-            var createReq = new CreateExpenseRequest
-            {
-                Title = tx.Description ?? "Chi tiêu từ ngân hàng",
-                Amount = tx.Amount,
-                CategoryId = categoryId,
-                SpentAt = tx.TransactionTime ?? DateTime.UtcNow,
-                PaymentMethod = "Transfer",
-                Note = $"Xác nhận từ thông báo ({tx.BankName})",
-                RawText = tx.RawMessage
-            };
+                int? categoryId = request.CategoryId ?? tx.CategoryId;
 
-            var expense = await _expenseService.CreateExpenseAsync(userId, createReq);
+                var createReq = new CreateExpenseRequest
+                {
+                    Title = tx.Description ?? "Chi tiêu từ ngân hàng",
+                    Amount = tx.Amount,
+                    CategoryId = categoryId,
+                    SpentAt = tx.TransactionTime ?? DateTime.UtcNow,
+                    PaymentMethod = "Transfer",
+                    Note = $"Xác nhận từ thông báo ({tx.BankName})",
+                    RawText = tx.RawMessage
+                };
 
-            tx.IsConfirmed = true;
-            tx.CategoryId = categoryId;
-            await _context.SaveChangesAsync();
+                var hasExistingTransaction = _context.Database.CurrentTransaction != null;
+                await using var transaction = hasExistingTransaction ? null : await _context.Database.BeginTransactionAsync();
 
-            return expense;
+                var expense = await _expenseService.CreateExpenseAsync(userId, createReq);
+
+                tx.IsConfirmed = true;
+                tx.CategoryId = categoryId;
+                await _context.SaveChangesAsync();
+
+                if (transaction != null)
+                {
+                    await transaction.CommitAsync();
+                }
+
+                return expense;
+            });
         }
 
         public async Task<bool> DeleteTransactionAsync(Guid userId, long bankTransactionId)

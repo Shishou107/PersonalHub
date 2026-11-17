@@ -143,22 +143,44 @@ namespace AiDailyExpense.Api.Services
 
         public async Task<UserDto> InitializeBalanceAsync(Guid userId, InitializeBalanceRequest request)
         {
-            var user = await _context.Users.FindAsync(userId);
-            if (user == null)
+            if (_context.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory")
             {
-                throw new KeyNotFoundException("Không tìm thấy người dùng.");
+                var user = await _context.Users.FindAsync(userId);
+                if (user == null)
+                {
+                    throw new KeyNotFoundException("Không tìm thấy người dùng.");
+                }
+                if (user.HasInitializedBalance)
+                {
+                    throw new InvalidOperationException("Số dư ban đầu đã được thiết lập.");
+                }
+
+                user.CashBalance = request.CashBalance;
+                user.BankBalance = request.BankBalance;
+                user.HasInitializedBalance = true;
+                await _context.SaveChangesAsync();
+                return ToUserDto(user);
             }
-            if (user.HasInitializedBalance)
+
+            var affected = await _context.Users
+                .Where(u => u.UserId == userId && !u.HasInitializedBalance)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(u => u.CashBalance, request.CashBalance)
+                    .SetProperty(u => u.BankBalance, request.BankBalance)
+                    .SetProperty(u => u.HasInitializedBalance, true));
+
+            if (affected == 0)
             {
+                var exists = await _context.Users.AnyAsync(u => u.UserId == userId);
+                if (!exists)
+                {
+                    throw new KeyNotFoundException("Không tìm thấy người dùng.");
+                }
                 throw new InvalidOperationException("Số dư ban đầu đã được thiết lập.");
             }
 
-            user.CashBalance = request.CashBalance;
-            user.BankBalance = request.BankBalance;
-            user.HasInitializedBalance = true;
-            await _context.SaveChangesAsync();
-
-            return ToUserDto(user);
+            var updatedUser = await _context.Users.FindAsync(userId);
+            return ToUserDto(updatedUser!);
         }
 
         public async Task RequestEmailVerificationAsync(string email)

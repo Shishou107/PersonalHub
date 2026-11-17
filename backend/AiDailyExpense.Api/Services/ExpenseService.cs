@@ -175,67 +175,76 @@ namespace AiDailyExpense.Api.Services
                 }
             }
 
-            var expense = new Expense
+            var executionStrategy = _context.Database.CreateExecutionStrategy();
+            return await executionStrategy.ExecuteAsync(async () =>
             {
-                UserId = userId,
-                CategoryId = request.CategoryId,
-                Title = request.Title.Trim(),
-                Amount = request.Amount,
-                SpentAt = request.SpentAt,
-                PaymentMethod = NormalizePaymentMethod(request.PaymentMethod),
-                Note = request.Note?.Trim(),
-                RawText = request.RawText?.Trim(),
-                CreatedAt = DateTime.UtcNow
-            };
+                var hasExistingTransaction = _context.Database.CurrentTransaction != null;
+                await using var transaction = hasExistingTransaction ? null : await _context.Database.BeginTransactionAsync();
 
-            _context.Expenses.Add(expense);
-            await ApplyBalanceChangeAsync(userId, expense.CategoryId, expense.Amount, expense.PaymentMethod, true);
-            await _context.SaveChangesAsync();
-
-            // Fetch name of category to return DTO properly
-            string categoryName = "Khác";
-            string categoryIcon = "other";
-            string categoryColor = "#6B7280";
-            string categoryType = "Expense";
-            if (expense.CategoryId.HasValue)
-            {
-                var category = await _context.ExpenseCategories.FindAsync(expense.CategoryId.Value);
-                if (category != null)
+                var expense = new Expense
                 {
-                    categoryName = category.Name;
-                    categoryIcon = category.Icon ?? "other";
-                    categoryColor = category.Color ?? "#6B7280";
-                    categoryType = category.Type;
-                }
-            }
+                    UserId = userId,
+                    CategoryId = request.CategoryId,
+                    Title = request.Title.Trim(),
+                    Amount = request.Amount,
+                    SpentAt = request.SpentAt,
+                    PaymentMethod = NormalizePaymentMethod(request.PaymentMethod),
+                    Note = request.Note?.Trim(),
+                    RawText = request.RawText?.Trim(),
+                    CreatedAt = DateTime.UtcNow
+                };
 
-            return new ExpenseDto
-            {
-                ExpenseId = expense.ExpenseId,
-                UserId = expense.UserId,
-                CategoryId = expense.CategoryId,
-                CategoryName = categoryName,
-                CategoryIcon = categoryIcon,
-                CategoryColor = categoryColor,
-                Title = expense.Title,
-                Amount = expense.Amount,
-                SpentAt = expense.SpentAt,
-                PaymentMethod = expense.PaymentMethod,
-                CategoryType = categoryType,
-                Note = expense.Note,
-                RawText = expense.RawText,
-                CreatedAt = expense.CreatedAt
-            };
+                _context.Expenses.Add(expense);
+                await _context.SaveChangesAsync();
+
+                await ApplyBalanceChangeAtomicAsync(userId, expense.CategoryId, expense.Amount, expense.PaymentMethod, true);
+
+                if (transaction != null)
+                {
+                    await transaction.CommitAsync();
+                }
+
+                // Fetch name of category to return DTO properly without tracking
+                string categoryName = "Khác";
+                string categoryIcon = "other";
+                string categoryColor = "#6B7280";
+                string categoryType = "Expense";
+                if (expense.CategoryId.HasValue)
+                {
+                    var category = await _context.ExpenseCategories
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(c => c.CategoryId == expense.CategoryId.Value);
+                    if (category != null)
+                    {
+                        categoryName = category.Name;
+                        categoryIcon = category.Icon ?? "other";
+                        categoryColor = category.Color ?? "#6B7280";
+                        categoryType = category.Type;
+                    }
+                }
+
+                return new ExpenseDto
+                {
+                    ExpenseId = expense.ExpenseId,
+                    UserId = expense.UserId,
+                    CategoryId = expense.CategoryId,
+                    CategoryName = categoryName,
+                    CategoryIcon = categoryIcon,
+                    CategoryColor = categoryColor,
+                    Title = expense.Title,
+                    Amount = expense.Amount,
+                    SpentAt = expense.SpentAt,
+                    PaymentMethod = expense.PaymentMethod,
+                    CategoryType = categoryType,
+                    Note = expense.Note,
+                    RawText = expense.RawText,
+                    CreatedAt = expense.CreatedAt
+                };
+            });
         }
 
         public async Task<ExpenseDto> UpdateExpenseAsync(Guid userId, long expenseId, UpdateExpenseRequest request)
         {
-            var expense = await _context.Expenses.FirstOrDefaultAsync(e => e.UserId == userId && e.ExpenseId == expenseId);
-            if (expense == null)
-            {
-                throw new KeyNotFoundException("Không tìm thấy khoản chi tiêu hoặc bạn không có quyền sửa.");
-            }
-
             if (request.CategoryId.HasValue)
             {
                 var catExists = await _context.ExpenseCategories.AnyAsync(c => c.CategoryId == request.CategoryId.Value && (c.UserId == null || c.UserId == userId));
@@ -245,81 +254,116 @@ namespace AiDailyExpense.Api.Services
                 }
             }
 
-            var oldCategoryId = expense.CategoryId;
-            var oldAmount = expense.Amount;
-            var oldPaymentMethod = expense.PaymentMethod;
-
-            expense.Title = request.Title.Trim();
-            expense.Amount = request.Amount;
-            expense.CategoryId = request.CategoryId;
-            expense.SpentAt = request.SpentAt;
-            expense.PaymentMethod = NormalizePaymentMethod(request.PaymentMethod);
-            expense.Note = request.Note?.Trim();
-            expense.UpdatedAt = DateTime.UtcNow;
-
-            await ApplyBalanceChangeAsync(userId, oldCategoryId, oldAmount, oldPaymentMethod, false);
-            await ApplyBalanceChangeAsync(userId, expense.CategoryId, expense.Amount, expense.PaymentMethod, true);
-            await _context.SaveChangesAsync();
-
-            string categoryName = "Khác";
-            string categoryIcon = "other";
-            string categoryColor = "#6B7280";
-            string updateCategoryType = "Expense";
-            if (expense.CategoryId.HasValue)
+            var executionStrategy = _context.Database.CreateExecutionStrategy();
+            return await executionStrategy.ExecuteAsync(async () =>
             {
-                var category = await _context.ExpenseCategories.FindAsync(expense.CategoryId.Value);
-                if (category != null)
+                var expense = await _context.Expenses.FirstOrDefaultAsync(e => e.UserId == userId && e.ExpenseId == expenseId);
+                if (expense == null)
                 {
-                    categoryName = category.Name;
-                    categoryIcon = category.Icon ?? "other";
-                    categoryColor = category.Color ?? "#6B7280";
-                    updateCategoryType = category.Type;
+                    throw new KeyNotFoundException("Không tìm thấy khoản chi tiêu hoặc bạn không có quyền sửa.");
                 }
-            }
 
-            return new ExpenseDto
-            {
-                ExpenseId = expense.ExpenseId,
-                UserId = expense.UserId,
-                CategoryId = expense.CategoryId,
-                CategoryName = categoryName,
-                CategoryIcon = categoryIcon,
-                CategoryColor = categoryColor,
-                Title = expense.Title,
-                Amount = expense.Amount,
-                SpentAt = expense.SpentAt,
-                PaymentMethod = expense.PaymentMethod,
-                CategoryType = updateCategoryType,
-                Note = expense.Note,
-                RawText = expense.RawText,
-                CreatedAt = expense.CreatedAt,
-                UpdatedAt = expense.UpdatedAt
-            };
+                var hasExistingTransaction = _context.Database.CurrentTransaction != null;
+                await using var transaction = hasExistingTransaction ? null : await _context.Database.BeginTransactionAsync();
+
+                var oldCategoryId = expense.CategoryId;
+                var oldAmount = expense.Amount;
+                var oldPaymentMethod = expense.PaymentMethod;
+
+                expense.Title = request.Title.Trim();
+                expense.Amount = request.Amount;
+                expense.CategoryId = request.CategoryId;
+                expense.SpentAt = request.SpentAt;
+                expense.PaymentMethod = NormalizePaymentMethod(request.PaymentMethod);
+                expense.Note = request.Note?.Trim();
+                expense.UpdatedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+
+                await ApplyBalanceChangeAtomicAsync(userId, oldCategoryId, oldAmount, oldPaymentMethod, false);
+                await ApplyBalanceChangeAtomicAsync(userId, expense.CategoryId, expense.Amount, expense.PaymentMethod, true);
+
+                if (transaction != null)
+                {
+                    await transaction.CommitAsync();
+                }
+
+                string categoryName = "Khác";
+                string categoryIcon = "other";
+                string categoryColor = "#6B7280";
+                string updateCategoryType = "Expense";
+                if (expense.CategoryId.HasValue)
+                {
+                    var category = await _context.ExpenseCategories
+                        .AsNoTracking()
+                        .FirstOrDefaultAsync(c => c.CategoryId == expense.CategoryId.Value);
+                    if (category != null)
+                    {
+                        categoryName = category.Name;
+                        categoryIcon = category.Icon ?? "other";
+                        categoryColor = category.Color ?? "#6B7280";
+                        updateCategoryType = category.Type;
+                    }
+                }
+
+                return new ExpenseDto
+                {
+                    ExpenseId = expense.ExpenseId,
+                    UserId = expense.UserId,
+                    CategoryId = expense.CategoryId,
+                    CategoryName = categoryName,
+                    CategoryIcon = categoryIcon,
+                    CategoryColor = categoryColor,
+                    Title = expense.Title,
+                    Amount = expense.Amount,
+                    SpentAt = expense.SpentAt,
+                    PaymentMethod = expense.PaymentMethod,
+                    CategoryType = updateCategoryType,
+                    Note = expense.Note,
+                    RawText = expense.RawText,
+                    CreatedAt = expense.CreatedAt,
+                    UpdatedAt = expense.UpdatedAt
+                };
+            });
         }
 
         public async Task<bool> DeleteExpenseAsync(Guid userId, long expenseId)
         {
-            var expense = await _context.Expenses.FirstOrDefaultAsync(e => e.UserId == userId && e.ExpenseId == expenseId);
-            if (expense == null)
+            var executionStrategy = _context.Database.CreateExecutionStrategy();
+            return await executionStrategy.ExecuteAsync(async () =>
             {
-                return false;
-            }
-
-            // Delete corresponding bank transaction if it exists
-            if (!string.IsNullOrWhiteSpace(expense.RawText))
-            {
-                var bankTx = await _context.BankTransactions
-                    .FirstOrDefaultAsync(t => t.UserId == userId && t.RawMessage == expense.RawText);
-                if (bankTx != null)
+                var expense = await _context.Expenses.FirstOrDefaultAsync(e => e.UserId == userId && e.ExpenseId == expenseId);
+                if (expense == null)
                 {
-                    _context.BankTransactions.Remove(bankTx);
+                    return false;
                 }
-            }
 
-            await ApplyBalanceChangeAsync(userId, expense.CategoryId, expense.Amount, expense.PaymentMethod, false);
-            _context.Expenses.Remove(expense);
-            await _context.SaveChangesAsync();
-            return true;
+                var hasExistingTransaction = _context.Database.CurrentTransaction != null;
+                await using var transaction = hasExistingTransaction ? null : await _context.Database.BeginTransactionAsync();
+
+                // Delete corresponding bank transaction if it exists
+                if (!string.IsNullOrWhiteSpace(expense.RawText))
+                {
+                    var bankTx = await _context.BankTransactions
+                        .FirstOrDefaultAsync(t => t.UserId == userId && t.RawMessage == expense.RawText);
+                    if (bankTx != null)
+                    {
+                        _context.BankTransactions.Remove(bankTx);
+                    }
+                }
+
+                _context.Expenses.Remove(expense);
+                await _context.SaveChangesAsync();
+
+                await ApplyBalanceChangeAtomicAsync(userId, expense.CategoryId, expense.Amount, expense.PaymentMethod, false);
+
+                if (transaction != null)
+                {
+                    await transaction.CommitAsync();
+                }
+
+                return true;
+            });
         }
 
         private static string NormalizePaymentMethod(string? paymentMethod)
@@ -327,18 +371,13 @@ namespace AiDailyExpense.Api.Services
             return string.Equals(paymentMethod, "Transfer", StringComparison.OrdinalIgnoreCase) ? "Transfer" : "Cash";
         }
 
-        private async Task ApplyBalanceChangeAsync(Guid userId, int? categoryId, decimal amount, string? paymentMethod, bool apply)
+        private async Task ApplyBalanceChangeAtomicAsync(Guid userId, int? categoryId, decimal amount, string? paymentMethod, bool apply)
         {
-            var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId);
-            if (user == null)
-            {
-                throw new KeyNotFoundException("Không tìm thấy người dùng.");
-            }
-
             var categoryType = "Expense";
             if (categoryId.HasValue)
             {
                 var category = await _context.ExpenseCategories
+                    .AsNoTracking()
                     .FirstOrDefaultAsync(c => c.CategoryId == categoryId.Value && (c.UserId == null || c.UserId == userId));
                 categoryType = category?.Type ?? "Expense";
             }
@@ -349,13 +388,46 @@ namespace AiDailyExpense.Api.Services
                 signedAmount = -signedAmount;
             }
 
-            if (NormalizePaymentMethod(paymentMethod) == "Transfer")
+            var normalizedMethod = NormalizePaymentMethod(paymentMethod);
+
+            if (_context.Database.ProviderName == "Microsoft.EntityFrameworkCore.InMemory")
             {
-                user.BankBalance += signedAmount;
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId);
+                if (user == null)
+                {
+                    throw new KeyNotFoundException("Không tìm thấy người dùng.");
+                }
+
+                if (normalizedMethod == "Transfer")
+                {
+                    user.BankBalance += signedAmount;
+                }
+                else
+                {
+                    user.CashBalance += signedAmount;
+                }
+
+                await _context.SaveChangesAsync();
+                return;
+            }
+
+            int affected;
+            if (normalizedMethod == "Transfer")
+            {
+                affected = await _context.Users
+                    .Where(u => u.UserId == userId)
+                    .ExecuteUpdateAsync(s => s.SetProperty(u => u.BankBalance, u => u.BankBalance + signedAmount));
             }
             else
             {
-                user.CashBalance += signedAmount;
+                affected = await _context.Users
+                    .Where(u => u.UserId == userId)
+                    .ExecuteUpdateAsync(s => s.SetProperty(u => u.CashBalance, u => u.CashBalance + signedAmount));
+            }
+
+            if (affected == 0)
+            {
+                throw new KeyNotFoundException("Không tìm thấy người dùng.");
             }
         }
     }
