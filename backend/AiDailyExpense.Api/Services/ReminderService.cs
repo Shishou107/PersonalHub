@@ -2,11 +2,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
 using AiDailyExpense.Api.Data;
 using AiDailyExpense.Api.DTOs.Reminders;
 using AiDailyExpense.Api.Models;
 using AiDailyExpense.Api.Services.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 namespace AiDailyExpense.Api.Services
 {

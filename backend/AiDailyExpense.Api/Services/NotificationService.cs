@@ -1,11 +1,11 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
 using AiDailyExpense.Api.Data;
 using AiDailyExpense.Api.DTOs.Devices;
 using AiDailyExpense.Api.Models;
 using AiDailyExpense.Api.Services.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 namespace AiDailyExpense.Api.Services
 {

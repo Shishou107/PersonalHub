@@ -1,6 +1,6 @@
 using System;
-using Xunit;
 using AiDailyExpense.Api.Helpers;
+using Xunit;
 
 namespace AiDailyExpense.Tests
 {

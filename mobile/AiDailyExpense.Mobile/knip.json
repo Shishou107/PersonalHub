@@ -1,0 +1,6 @@
+{
+  "$schema": "https://unpkg.com/knip@5/overview/configuration-schema.json",
+  "entry": ["index.ts", "App.tsx"],
+  "project": ["src/**/*.{ts,tsx}"],
+  "ignore": ["android/**", ".expo/**", "node_modules/**"]
+}

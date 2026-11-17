@@ -1,10 +1,10 @@
 using System.Security.Cryptography;
 using System.Text;
-using Microsoft.EntityFrameworkCore;
 using AiDailyExpense.Api.Data;
 using AiDailyExpense.Api.DTOs.Vault;
 using AiDailyExpense.Api.Models;
 using AiDailyExpense.Api.Services.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 namespace AiDailyExpense.Api.Services
 {

@@ -2,12 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
 using AiDailyExpense.Api.Data;
 using AiDailyExpense.Api.DTOs.Expenses;
 using AiDailyExpense.Api.DTOs.Reports;
 using AiDailyExpense.Api.DTOs.Tasks;
 using AiDailyExpense.Api.Services.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 namespace AiDailyExpense.Api.Services
 {
@@ -29,7 +29,7 @@ namespace AiDailyExpense.Api.Services
             var user = await _context.Users.FirstAsync(u => u.UserId == userId);
             var timeZoneId = user.TimeZone ?? "Asia/Ho_Chi_Minh";
             var tz = Helpers.DateTimeHelper.GetUserTimeZone(timeZoneId);
-            
+
             var userLocalTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
             var todayLocal = userLocalTime.Date;
             var startOfMonthLocal = new DateTime(todayLocal.Year, todayLocal.Month, 1);
@@ -121,7 +121,7 @@ namespace AiDailyExpense.Api.Services
             {
                 var highestSpent = grouped.First();
                 aiSummary = $"Tháng này bạn tiêu nhiều nhất vào mục '{highestSpent.CategoryName}' với {highestSpent.TotalAmount:N0}đ (chiếm {highestSpent.Percent}%).";
-                
+
                 if (highestSpent.CategoryName == "Ăn uống" && highestSpent.Percent > 40)
                 {
                     aiSummary += " Hãy cân nhắc tự nấu ăn ở nhà để tiết kiệm chi phí ăn ngoài nhé!";

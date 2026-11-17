@@ -2,12 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
 using AiDailyExpense.Api.Data;
 using AiDailyExpense.Api.DTOs.Tasks;
 using AiDailyExpense.Api.Helpers;
 using AiDailyExpense.Api.Models;
 using AiDailyExpense.Api.Services.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 namespace AiDailyExpense.Api.Services
 {
@@ -30,7 +30,7 @@ namespace AiDailyExpense.Api.Services
                 var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId);
                 var timeZoneId = user?.TimeZone ?? "Asia/Ho_Chi_Minh";
                 var (startUtc, endUtc) = Helpers.DateTimeHelper.GetUtcRangeForLocalDate(date.Value, timeZoneId);
-                
+
                 query = query.Where(t => t.DueAt.HasValue && t.DueAt.Value >= startUtc && t.DueAt.Value < endUtc);
             }
 
@@ -53,10 +53,10 @@ namespace AiDailyExpense.Api.Services
             var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId);
             var timeZoneId = user?.TimeZone ?? "Asia/Ho_Chi_Minh";
             var tz = Helpers.DateTimeHelper.GetUserTimeZone(timeZoneId);
-            
+
             var userLocalTime = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz);
             var todayLocal = userLocalTime.Date;
-            
+
             var (todayUtc, tomorrowUtc) = Helpers.DateTimeHelper.GetUtcRangeForLocalDate(todayLocal, timeZoneId);
             var nowUtc = DateTime.UtcNow;
 
@@ -64,7 +64,7 @@ namespace AiDailyExpense.Api.Services
             var tasks = await _context.UserTasks
                 .AsNoTracking()
                 .Include(t => t.Reminders)
-                .Where(t => t.UserId == userId && 
+                .Where(t => t.UserId == userId &&
                             ((t.DueAt.HasValue && t.DueAt.Value >= todayUtc && t.DueAt.Value < tomorrowUtc) ||
                              (t.DueAt.HasValue && t.DueAt.Value < todayUtc && t.Status == "Pending") ||
                              (!t.DueAt.HasValue && t.Status == "Pending" && t.CreatedAt >= todayUtc && t.CreatedAt < tomorrowUtc)))
@@ -128,8 +128,8 @@ namespace AiDailyExpense.Api.Services
                     UserId = userId,
                     TaskId = task.TaskId,
                     Title = task.Title,
-                    Message = task.TaskType == "Schedule" 
-                        ? $"Sắp đến giờ diễn ra lịch trình: {task.Title}" 
+                    Message = task.TaskType == "Schedule"
+                        ? $"Sắp đến giờ diễn ra lịch trình: {task.Title}"
                         : $"Sắp đến giờ thực hiện công việc: {task.Title}",
                     RemindAt = remindTime,
                     IsSent = false,
@@ -324,8 +324,8 @@ namespace AiDailyExpense.Api.Services
                     UserId = userId,
                     TaskId = task.TaskId,
                     Title = task.Title,
-                    Message = task.TaskType == "Schedule" 
-                        ? $"Sắp đến giờ diễn ra lịch trình: {task.Title}" 
+                    Message = task.TaskType == "Schedule"
+                        ? $"Sắp đến giờ diễn ra lịch trình: {task.Title}"
                         : $"Sắp đến giờ thực hiện công việc: {task.Title}",
                     RemindAt = remindTime,
                     IsSent = false,

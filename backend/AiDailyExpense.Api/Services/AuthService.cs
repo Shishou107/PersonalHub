@@ -1,12 +1,12 @@
 using System;
-using System.Threading.Tasks;
 using System.Security.Cryptography;
-using Microsoft.EntityFrameworkCore;
+using System.Threading.Tasks;
 using AiDailyExpense.Api.Data;
 using AiDailyExpense.Api.DTOs.Auth;
 using AiDailyExpense.Api.Helpers;
 using AiDailyExpense.Api.Models;
 using AiDailyExpense.Api.Services.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 namespace AiDailyExpense.Api.Services
 {

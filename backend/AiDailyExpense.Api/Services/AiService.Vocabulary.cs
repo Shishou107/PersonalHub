@@ -8,8 +8,6 @@ using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using AiDailyExpense.Api.Data;
 using AiDailyExpense.Api.DTOs.Ai;
 using AiDailyExpense.Api.DTOs.Expenses;
@@ -17,6 +15,8 @@ using AiDailyExpense.Api.DTOs.Tasks;
 using AiDailyExpense.Api.Helpers;
 using AiDailyExpense.Api.Models;
 using AiDailyExpense.Api.Services.Interfaces;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 
 namespace AiDailyExpense.Api.Services
 {

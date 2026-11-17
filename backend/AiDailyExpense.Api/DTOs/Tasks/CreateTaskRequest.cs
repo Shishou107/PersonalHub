@@ -25,13 +25,13 @@ namespace AiDailyExpense.Api.DTOs.Tasks
         public string RepeatType { get; set; } = "None";
 
         public int? ReminderBeforeMinutes { get; set; }
-        
+
         [RegularExpression("^(Task|Schedule)$", ErrorMessage = "Loại công việc/lịch trình không hợp lệ.")]
         public string TaskType { get; set; } = "Task";
 
         [StringLength(200, ErrorMessage = "Địa điểm tối đa 200 ký tự.")]
         public string? Location { get; set; }
-        
+
         public string? RawText { get; set; }
     }
 }

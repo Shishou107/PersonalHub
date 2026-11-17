@@ -1,11 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
 using AiDailyExpense.Api.DTOs.Expenses;
 using AiDailyExpense.Api.Helpers;
 using AiDailyExpense.Api.Services.Interfaces;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 namespace AiDailyExpense.Api.Controllers
 {

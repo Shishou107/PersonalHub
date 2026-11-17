@@ -1,5 +1,5 @@
-using Microsoft.EntityFrameworkCore;
 using AiDailyExpense.Api.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace AiDailyExpense.Api.Data
 {

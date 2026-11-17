@@ -26,7 +26,7 @@ namespace AiDailyExpense.Api.Helpers
                     }
                     catch { }
                 }
-                
+
                 return TimeZoneInfo.Utc;
             }
         }

@@ -2,12 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.EntityFrameworkCore;
 using AiDailyExpense.Api.Data;
 using AiDailyExpense.Api.DTOs.Categories;
 using AiDailyExpense.Api.DTOs.Expenses;
 using AiDailyExpense.Api.Models;
 using AiDailyExpense.Api.Services.Interfaces;
+using Microsoft.EntityFrameworkCore;
 
 namespace AiDailyExpense.Api.Services
 {
@@ -44,7 +44,7 @@ namespace AiDailyExpense.Api.Services
         public async Task<CategoryDto> CreateCategoryAsync(Guid userId, CreateCategoryRequest request)
         {
             var exists = await _context.ExpenseCategories
-                .AnyAsync(c => (c.UserId == userId || c.UserId == null) && c.Name.ToLower() == request.Name.Trim().ToLower() && c.Type == request.Type);
+                .AnyAsync(c => (c.UserId == userId || c.UserId == null) && string.Equals(c.Name, request.Name.Trim(), StringComparison.OrdinalIgnoreCase) && c.Type == request.Type);
 
             if (exists)
             {
