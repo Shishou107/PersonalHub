@@ -23,21 +23,37 @@ namespace AiDailyExpense.Api.Services
         public async Task<List<StudyDeckDto>> GetDecksAsync(Guid userId)
         {
             var dueCards = await GetDueCardIdsAsync(userId);
+            return await GetDecksInternalAsync(userId, dueCards);
+        }
 
-            return await _context.StudyDecks
+        private async Task<List<StudyDeckDto>> GetDecksInternalAsync(Guid userId, HashSet<long> dueCards)
+        {
+            var decks = await _context.StudyDecks
+                .AsNoTracking()
                 .Where(d => d.UserId == userId)
                 .OrderBy(d => d.Name)
-                .Select(d => new StudyDeckDto
+                .Select(d => new
                 {
-                    Id = d.Id,
-                    Name = d.Name,
-                    Description = d.Description,
-                    Language = ResolveDeckLanguage(d.Language, d.Name, d.Description),
+                    d.Id,
+                    d.Name,
+                    d.Description,
+                    d.Language,
                     CardCount = d.StudyCards.Count,
-                    DueCount = d.StudyCards.Count(c => dueCards.Contains(c.Id)),
-                    CreatedAt = d.CreatedAt
+                    CardIds = d.StudyCards.Select(c => c.Id).ToList(),
+                    d.CreatedAt
                 })
                 .ToListAsync();
+
+            return decks.Select(d => new StudyDeckDto
+            {
+                Id = d.Id,
+                Name = d.Name,
+                Description = d.Description,
+                Language = ResolveDeckLanguage(d.Language, d.Name, d.Description),
+                CardCount = d.CardCount,
+                DueCount = d.CardIds.Count(id => dueCards.Contains(id)),
+                CreatedAt = d.CreatedAt
+            }).ToList();
         }
 
         public async Task<StudyDeckDto> CreateDeckAsync(Guid userId, CreateStudyDeckRequest request)
@@ -87,6 +103,7 @@ namespace AiDailyExpense.Api.Services
         public async Task<List<StudyCardDto>> GetCardsAsync(Guid userId, int? deckId)
         {
             var query = _context.StudyCards
+                .AsNoTracking()
                 .Include(c => c.Deck)
                 .Include(c => c.StudyReviews)
                 .Where(c => c.Deck.UserId == userId);
@@ -170,6 +187,7 @@ namespace AiDailyExpense.Api.Services
             var dueCardIds = await GetDueCardIdsAsync(userId, deckId);
 
             var query = _context.StudyCards
+                .AsNoTracking()
                 .Include(c => c.Deck)
                 .Include(c => c.StudyReviews)
                 .Where(c => c.Deck.UserId == userId && dueCardIds.Contains(c.Id));
@@ -238,21 +256,37 @@ namespace AiDailyExpense.Api.Services
 
         public async Task<StudyStatsDto> GetStatsAsync(Guid userId)
         {
-            var decks = await GetDecksAsync(userId);
-            var todayUtc = DateTime.UtcNow.Date;
+            var nowUtc = DateTime.UtcNow;
+            var todayUtc = nowUtc.Date;
             var tomorrowUtc = todayUtc.AddDays(1);
             var nextWeekUtc = todayUtc.AddDays(7);
-            var dueCardIds = await GetDueCardIdsAsync(userId);
 
-            var cards = _context.StudyCards.Where(c => c.Deck.UserId == userId);
+            var cardsWithReviews = await _context.StudyCards
+                .AsNoTracking()
+                .Where(c => c.Deck.UserId == userId)
+                .Select(c => new
+                {
+                    c.Id,
+                    c.DeckId,
+                    LatestReview = c.StudyReviews.OrderByDescending(r => r.ReviewDate).FirstOrDefault()
+                })
+                .ToListAsync();
+
+            var dueCardIds = cardsWithReviews
+                .Where(c => c.LatestReview == null || c.LatestReview.NextReviewDate <= nowUtc)
+                .Select(c => c.Id)
+                .ToHashSet();
+
+            var decks = await GetDecksInternalAsync(userId, dueCardIds);
+
             var reviewedToday = await _context.StudyReviews
+                .AsNoTracking()
                 .CountAsync(r => r.Card.Deck.UserId == userId && r.ReviewDate >= todayUtc && r.ReviewDate < tomorrowUtc);
 
-            var latestReviews = await _context.StudyCards
-                .Where(c => c.Deck.UserId == userId)
-                .Select(c => c.StudyReviews.OrderByDescending(r => r.ReviewDate).FirstOrDefault())
+            var latestReviews = cardsWithReviews
+                .Select(c => c.LatestReview)
                 .Where(r => r != null)
-                .ToListAsync();
+                .ToList();
 
             var weakCards = latestReviews.Count(r => r!.Rating == "Forgot" || r.Rating == "Hard");
             var upcomingCards = latestReviews.Count(r => r!.NextReviewDate >= tomorrowUtc && r.NextReviewDate <= nextWeekUtc);
@@ -261,7 +295,7 @@ namespace AiDailyExpense.Api.Services
             {
                 DueToday = dueCardIds.Count,
                 ReviewedToday = reviewedToday,
-                TotalCards = await cards.CountAsync(),
+                TotalCards = cardsWithReviews.Count,
                 WeakCards = weakCards,
                 UpcomingCards = upcomingCards,
                 StreakDays = await CalculateStreakDaysAsync(userId),
@@ -273,6 +307,7 @@ namespace AiDailyExpense.Api.Services
         {
             var nowUtc = DateTime.UtcNow;
             var query = _context.StudyCards
+                .AsNoTracking()
                 .Where(c => c.Deck.UserId == userId);
 
             if (deckId.HasValue)
@@ -373,6 +408,7 @@ namespace AiDailyExpense.Api.Services
         private async Task<int> CalculateStreakDaysAsync(Guid userId)
         {
             var reviewDates = await _context.StudyReviews
+                .AsNoTracking()
                 .Where(r => r.Card.Deck.UserId == userId)
                 .Select(r => r.ReviewDate.Date)
                 .Distinct()

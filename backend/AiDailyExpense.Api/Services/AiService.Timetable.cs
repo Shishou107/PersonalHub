@@ -84,7 +84,7 @@ namespace AiDailyExpense.Api.Services
             return response;
         }
 
-        private string BuildTimetableImagePrompt(DateTime vietnamNow)
+        private static string BuildTimetableImagePrompt(DateTime vietnamNow)
         {
             var weekStart = vietnamNow.Date.AddDays(-(((int)vietnamNow.DayOfWeek + 6) % 7));
             var weekEnd = weekStart.AddDays(6);

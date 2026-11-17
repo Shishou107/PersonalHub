@@ -3,9 +3,9 @@ import { Alert, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'rea
 import { Ionicons } from '@expo/vector-icons';
 import PageContainer from '../../components/PageContainer';
 import Loading from '../../components/Loading';
+import StudyExtendedAnalysis from '../../components/StudyExtendedAnalysis';
 import studyService from '../../services/studyService';
 import studySpeechService from '../../services/studySpeechService';
-import type { AiVocabularyAnalyzeResponseData } from '../../services/aiService';
 import { StudyCard, StudyDeck, StudyRating } from '../../types/study';
 import { COLORS } from '../../utils/theme';
 import { getApiErrorMessage } from '../../utils/apiError';
@@ -133,82 +133,6 @@ const StudyReviewScreen = ({ navigation, route }: any) => {
     }
   };
 
-  const parseExtendedAnalysis = (value?: string): AiVocabularyAnalyzeResponseData | null => {
-    if (!value) return null;
-
-    try {
-      const data: any = JSON.parse(value);
-      const family = data.wordFamily || data.word_family || {};
-      return {
-        language: data.language || '',
-        input: data.input || '',
-        meaningVi: data.meaningVi || data.meaning_vi || '',
-        baseWord: data.baseWord || data.base_word || '',
-        wordFamily: {
-          noun: family.noun || [],
-          verb: family.verb || [],
-          adjective: family.adjective || [],
-          adverb: family.adverb || [],
-        },
-        synonyms: (data.synonyms || []).map((item: any) => ({
-          word: item.word || '',
-          reading: item.reading || '',
-          meaningVi: item.meaningVi || item.meaning_vi || '',
-          note: item.note || '',
-        })),
-      };
-    } catch {
-      return null;
-    }
-  };
-
-  const renderExtendedAnalysis = (analysis: AiVocabularyAnalyzeResponseData | null) => {
-    if (!analysis) return null;
-
-    const familyRows = [
-      { label: 'Danh từ (Noun)', values: analysis.wordFamily?.noun || [] },
-      { label: 'Động từ (Verb)', values: analysis.wordFamily?.verb || [] },
-      { label: 'Tính từ (Adjective)', values: analysis.wordFamily?.adjective || [] },
-    ].filter((row) => row.values.length > 0);
-
-    const hasData = analysis.meaningVi || analysis.baseWord || familyRows.length > 0 || analysis.synonyms?.length > 0;
-    if (!hasData) return null;
-
-    return (
-      <View style={styles.analysisCard}>
-        <Text style={styles.analysisHeader}>Phân tích mở rộng</Text>
-        {!!analysis.baseWord && <Text style={styles.analysisSummary}>Từ gốc: {analysis.baseWord}</Text>}
-        {!!analysis.meaningVi && <Text style={styles.analysisSummary}>Nghĩa: {analysis.meaningVi}</Text>}
-
-        {analysis.language === 'english' && familyRows.length > 0 ? (
-          <View style={styles.analysisBlock}>
-            <Text style={styles.analysisTitle}>Word Family (Danh từ - Động từ - Tính từ)</Text>
-            {familyRows.map((row) => (
-              <View key={row.label} style={styles.tableRow}>
-                <Text style={styles.tableLabel}>{row.label}</Text>
-                <Text style={styles.tableValue}>{row.values.join(', ')}</Text>
-              </View>
-            ))}
-          </View>
-        ) : null}
-
-        {analysis.synonyms?.length > 0 ? (
-          <View style={styles.analysisBlock}>
-            <Text style={styles.analysisTitle}>Từ đồng nghĩa</Text>
-            {analysis.synonyms.map((item, itemIndex) => (
-              <View key={`${item.word}-${itemIndex}`} style={styles.synonymRow}>
-                <Text style={styles.synonymWord}>{item.word || '-'}</Text>
-                {!!item.reading && <Text style={styles.synonymReading}>{item.reading}</Text>}
-                <Text style={styles.synonymMeaning}>{item.meaningVi || '-'}</Text>
-                {!!item.note && <Text style={styles.synonymNote}>{item.note}</Text>}
-              </View>
-            ))}
-          </View>
-        ) : null}
-      </View>
-    );
-  };
-
   const submitRating = async (rating: StudyRating) => {
     if (!currentCard) return;
 
@@ -320,7 +244,7 @@ const StudyReviewScreen = ({ navigation, route }: any) => {
               {currentCard.example ? <Text style={styles.example}>{currentCard.example}</Text> : null}
               {currentCard.note ? <Text style={styles.note}>{currentCard.note}</Text> : null}
               {currentCard.tags ? <Text style={styles.tags}>{currentCard.tags}</Text> : null}
-              {renderExtendedAnalysis(parseExtendedAnalysis(currentCard.extendedData))}
+              <StudyExtendedAnalysis extendedData={currentCard.extendedData} />
             </View>
           ) : (
             <TouchableOpacity style={styles.showButton} onPress={() => setShowAnswer(true)}>
@@ -565,82 +489,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
     color: COLORS.primary,
     fontWeight: '900',
-  },
-  analysisCard: {
-    marginTop: 14,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: COLORS.cardBorder,
-    backgroundColor: 'rgba(255, 255, 255, 0.56)',
-    padding: 10,
-  },
-  analysisHeader: {
-    color: COLORS.text,
-    fontSize: 14,
-    fontWeight: '900',
-    marginBottom: 6,
-  },
-  analysisSummary: {
-    color: COLORS.text,
-    fontSize: 12,
-    fontWeight: '700',
-    marginTop: 3,
-  },
-  analysisBlock: {
-    marginTop: 8,
-  },
-  analysisTitle: {
-    color: COLORS.primary,
-    fontSize: 12,
-    fontWeight: '900',
-    marginBottom: 5,
-  },
-  tableRow: {
-    flexDirection: 'row',
-    borderTopWidth: 1,
-    borderTopColor: COLORS.cardBorder,
-    paddingVertical: 6,
-    gap: 8,
-  },
-  tableLabel: {
-    width: 76,
-    color: COLORS.text,
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  tableValue: {
-    flex: 1,
-    color: COLORS.text,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  synonymRow: {
-    borderTopWidth: 1,
-    borderTopColor: COLORS.cardBorder,
-    paddingVertical: 7,
-  },
-  synonymWord: {
-    color: COLORS.text,
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  synonymReading: {
-    color: COLORS.secondary,
-    fontSize: 11,
-    fontWeight: '800',
-    marginTop: 2,
-  },
-  synonymMeaning: {
-    color: COLORS.text,
-    fontSize: 12,
-    fontWeight: '700',
-    marginTop: 2,
-  },
-  synonymNote: {
-    color: COLORS.textMuted,
-    fontSize: 11,
-    fontWeight: '600',
-    marginTop: 2,
   },
   ratingGrid: {
     flexDirection: 'row',

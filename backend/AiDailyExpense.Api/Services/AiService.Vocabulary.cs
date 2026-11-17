@@ -476,7 +476,7 @@ JSON format:
 """;
         }
 
-        private string BuildVocabularyPrompt(string text, string instruction = "")
+        private static string BuildVocabularyPrompt(string text, string instruction = "")
         {
             var input = JsonSerializer.Serialize(text);
             var instructionSection = string.IsNullOrWhiteSpace(instruction)

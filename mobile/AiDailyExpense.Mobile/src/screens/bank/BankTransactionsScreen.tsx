@@ -14,6 +14,7 @@ import {
   isIgnoringBatteryOptimizations,
   openAutoStartSettings,
   openBatteryOptimizationSettings,
+  openNotificationAccessSettings,
   rebindNotificationListener,
 } from '../../utils/backgroundPermission';
 import { getApiErrorMessage } from '../../utils/apiError';
@@ -106,13 +107,16 @@ const BankTransactionsScreen = ({ navigation }: any) => {
     setMonth((value) => value + direction);
   };
 
-  const openNotificationAccessSettings = async () => {
+  const handleOpenNotificationAccessSettings = async () => {
     try {
-      if (Platform.OS === 'android' && (Linking as any).sendIntent) {
-        await (Linking as any).sendIntent('android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS');
-        return;
+      const handled = await openNotificationAccessSettings();
+      if (!handled) {
+        if (Platform.OS === 'android' && (Linking as any).sendIntent) {
+          await (Linking as any).sendIntent('android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS');
+          return;
+        }
+        await Linking.openSettings();
       }
-      await Linking.openSettings();
     } catch {
       Alert.alert('Cài đặt thông báo', 'Vui lòng vào Cài đặt Android và bật quyền truy cập thông báo cho ứng dụng.');
     }
@@ -327,7 +331,7 @@ const BankTransactionsScreen = ({ navigation }: any) => {
         </View>
       </View>
 
-      <TouchableOpacity style={styles.permissionCard} onPress={openNotificationAccessSettings} activeOpacity={0.84}>
+      <TouchableOpacity style={styles.permissionCard} onPress={handleOpenNotificationAccessSettings} activeOpacity={0.84}>
         <View style={styles.permissionIcon}>
           <Ionicons name="notifications-outline" size={18} color="#0F766E" />
         </View>

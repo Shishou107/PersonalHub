@@ -1012,7 +1012,7 @@ namespace AiDailyExpense.Api.Services
                 : new List<DateTime> { hasExplicitDate ? taskDate : today.AddDays(1) };
         }
 
-        private List<DateTime> GetBatchTaskDates(DateTime taskDate, TimeSpan dueTime, DateTime vietnamNow, bool hasExplicitDate, bool expandRemainingWeek)
+        private static List<DateTime> GetBatchTaskDates(DateTime taskDate, TimeSpan dueTime, DateTime vietnamNow, bool hasExplicitDate, bool expandRemainingWeek)
         {
             if (!expandRemainingWeek)
             {
@@ -1215,7 +1215,7 @@ namespace AiDailyExpense.Api.Services
             return Regex.Replace(title, @"\s+(?:s\u00E1ng|sang|tr\u01B0a|trua|chi\u1EC1u|chieu|t\u1ED1i|toi|\u0111\u00EAm|dem)$", "", RegexOptions.IgnoreCase).Trim();
         }
 
-        private string RemoveLeadingTaskSubject(string title)
+        private static string RemoveLeadingTaskSubject(string title)
         {
             var result = title.Trim();
             var patterns = new[]
