@@ -18,6 +18,7 @@ brain/
 .agents/
 .codex/
 .t4/
+skills-lock.json
 
 # Sensitive configuration files containing private keys
 **/appsettings.Development.json
