@@ -1,7 +1,13 @@
 # Learn more https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files
 
-# dependencies
+# dependencies & cache
 node_modules/
+.npm-cache/
+
+# IDE & Editor
+.idea/
+.claude/
+.vscode/
 
 # Expo
 .expo/

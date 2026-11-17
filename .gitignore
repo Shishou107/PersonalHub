@@ -27,10 +27,22 @@ brain/
 # Node.js / React Native / Expo
 # ==========================================
 **/node_modules/
+**/.npm-cache/
+.npm-cache/
 .expo/
 dist/
 web-build/
 *.tsbuildinfo
+
+# ==========================================
+# IDE & Tooling
+# ==========================================
+**/.idea/
+.idea/
+**/.claude/
+.claude/
+**/.vscode/
+.vscode/
 
 # ==========================================
 # Android / Gradle
