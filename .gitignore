@@ -41,6 +41,9 @@ web-build/
 **/.g4/
 .gradle-cache/
 **/.gradle-cache/
+**/.cxx/
+**/.cxx-stage/
+**/.kotlin/
 **/build/
 *.apk
 *.aab

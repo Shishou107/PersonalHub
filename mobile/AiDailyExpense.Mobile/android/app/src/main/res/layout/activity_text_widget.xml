@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp"
+    android:background="#FFFFFF">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Trợ lý AI - Nhập nhanh"
+        android:textColor="#4F46E5"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="12dp" />
+
+    <EditText
+        android:id="@+id/edit_text_input"
+        android:layout_width="match_parent"
+        android:layout_height="80dp"
+        android:hint="Ví dụ: Ăn trưa 50k, xăng xe 30k..."
+        android:textColor="#1E293B"
+        android:textColorHint="#94A3B8"
+        android:gravity="top"
+        android:padding="8dp"
+        android:background="@drawable/widget_bg"
+        android:inputType="textMultiLine"
+        android:textSize="14sp"
+        android:layout_marginBottom="16dp" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end">
+
+        <Button
+            android:id="@+id/button_cancel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Hủy"
+            android:textColor="#64748B"
+            style="?android:attr/borderlessButtonStyle"
+            android:layout_marginEnd="8dp" />
+
+        <Button
+            android:id="@+id/button_send"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Gửi"
+            android:textColor="#FFFFFF"
+            android:backgroundTint="#4F46E5" />
+    </LinearLayout>
+
+</LinearLayout>
