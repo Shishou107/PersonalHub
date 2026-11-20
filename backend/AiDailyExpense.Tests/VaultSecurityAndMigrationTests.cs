@@ -198,8 +198,8 @@ namespace AiDailyExpense.Tests
             });
 
             // Encrypt using old mechanism: SHA256(legacySecret)
-            const string legacySecret = "OldLegacySecretPassphrase2025!";
-            var oldKey = SHA256.HashData(Encoding.UTF8.GetBytes(legacySecret));
+            const string oldLegacyPassphrase = "OldLegacyPassphrase2025!";
+            var oldKey = SHA256.HashData(Encoding.UTF8.GetBytes(oldLegacyPassphrase));
             var plainPwd = "OldLegacyEncryptedPassword123";
             var plainBytes = Encoding.UTF8.GetBytes(plainPwd);
             var nonce = RandomNumberGenerator.GetBytes(12);
@@ -227,7 +227,7 @@ namespace AiDailyExpense.Tests
                 .AddInMemoryCollection(new Dictionary<string, string?>
                 {
                     { "Vault:MasterKey", ValidNewKeyBase64 },
-                    { "Vault:LegacySecrets", $"SomeOtherSecret,{legacySecret}" }
+                    { "Vault:LegacySecrets", $"SomeOtherSecret,{oldLegacyPassphrase}" }
                 })
                 .Build();
 
@@ -302,16 +302,16 @@ namespace AiDailyExpense.Tests
             using var context = CreateInMemoryDbContext();
             var userId = Guid.NewGuid();
 
-            const string legacySecret1 = "LegacySecretA_2025";
-            const string legacySecret2 = "LegacySecretB_2025";
+            const string dummyLegacyPassphraseA = "LegacyPassphraseAlpha_2025";
+            const string dummyLegacyPassphraseB = "LegacyPassphraseBeta_2025";
 
             // Encrypt item 1 with legacy key 1
-            var key1 = SHA256.HashData(Encoding.UTF8.GetBytes(legacySecret1));
+            var key1 = SHA256.HashData(Encoding.UTF8.GetBytes(dummyLegacyPassphraseA));
             var (c1, n1, t1) = EncryptHelper("PasswordOne", key1);
             var item1 = new VaultItem { UserId = userId, Title = "Item 1", EncryptedPassword = c1, PasswordNonce = n1, PasswordAuthTag = t1 };
 
             // Encrypt item 2 with legacy key 2
-            var key2 = SHA256.HashData(Encoding.UTF8.GetBytes(legacySecret2));
+            var key2 = SHA256.HashData(Encoding.UTF8.GetBytes(dummyLegacyPassphraseB));
             var (c2, n2, t2) = EncryptHelper("PasswordTwo", key2);
             var item2 = new VaultItem { UserId = userId, Title = "Item 2", EncryptedPassword = c2, PasswordNonce = n2, PasswordAuthTag = t2 };
 
@@ -327,7 +327,7 @@ namespace AiDailyExpense.Tests
                 .AddInMemoryCollection(new Dictionary<string, string?>
                 {
                     { "Vault:MasterKey", ValidNewKeyBase64 },
-                    { "Vault:LegacySecrets", $"{legacySecret1};{legacySecret2}" }
+                    { "Vault:LegacySecrets", $"{dummyLegacyPassphraseA};{dummyLegacyPassphraseB}" }
                 })
                 .Build();
 

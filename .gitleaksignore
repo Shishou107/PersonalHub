@@ -1,0 +1,4 @@
+# Gitleaks ignore list
+# Test fixtures used for testing legacy migration in VaultSecurityAndMigrationTests
+f444bbf283ec37659808c5bea1bc30c443f8bb61:backend/AiDailyExpense.Tests/VaultSecurityAndMigrationTests.cs:generic-api-key:305
+f444bbf283ec37659808c5bea1bc30c443f8bb61:backend/AiDailyExpense.Tests/VaultSecurityAndMigrationTests.cs:generic-api-key:306
