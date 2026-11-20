@@ -56,14 +56,16 @@ const StudyExtendedAnalysis: React.FC<StudyExtendedAnalysisProps> = ({ extendedD
     { label: 'Tính từ (Adjective)', values: analysis.wordFamily?.adjective || [] },
   ].filter((row) => row.values.length > 0);
 
+  const isJapanese = analysis.language === 'japanese';
+
   const formRows = [
-    { label: 'V2 (Quá khứ)', value: analysis.forms?.v2 },
-    { label: 'V3 (Phân từ II)', value: analysis.forms?.v3 },
-    { label: 'V-ing', value: analysis.forms?.v_ing },
-    { label: 'V(s/es)', value: analysis.forms?.v_s_es },
-    { label: 'Số nhiều (Plural)', value: analysis.forms?.plural },
-    { label: 'So sánh hơn', value: analysis.forms?.comparative },
-    { label: 'So sánh nhất', value: analysis.forms?.superlative },
+    { label: isJapanese ? 'Thể Ta (た - Quá khứ)' : 'V2 (Quá khứ)', value: analysis.forms?.v2 },
+    { label: isJapanese ? 'Thể Te (て)' : 'V3 (Phân từ II)', value: analysis.forms?.v3 },
+    { label: isJapanese ? 'Thể Te-iru (ている - Tiếp diễn)' : 'V-ing', value: analysis.forms?.v_ing },
+    { label: isJapanese ? 'Thể Masu (ます - Lịch sự)' : 'V(s/es)', value: analysis.forms?.v_s_es },
+    { label: isJapanese ? 'Số nhiều / Hậu tố' : 'Số nhiều (Plural)', value: analysis.forms?.plural },
+    { label: isJapanese ? 'Thể Nai (ない - Phủ định)' : 'So sánh hơn', value: analysis.forms?.comparative },
+    { label: isJapanese ? 'Thể khả năng / Khác' : 'So sánh nhất', value: analysis.forms?.superlative },
   ].filter((row): row is { label: string; value: string } => Boolean(row.value));
 
   const hasData =
