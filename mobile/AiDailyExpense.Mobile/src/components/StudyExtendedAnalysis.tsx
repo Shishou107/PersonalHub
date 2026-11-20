@@ -13,6 +13,7 @@ export const parseExtendedAnalysis = (value?: string): AiVocabularyAnalyzeRespon
   try {
     const data: any = JSON.parse(value);
     const family = data.wordFamily || data.word_family || {};
+    const forms = data.forms || {};
     return {
       language: data.language || '',
       input: data.input || '',
@@ -23,6 +24,15 @@ export const parseExtendedAnalysis = (value?: string): AiVocabularyAnalyzeRespon
         verb: family.verb || [],
         adjective: family.adjective || [],
         adverb: family.adverb || [],
+      },
+      forms: {
+        plural: forms.plural ? String(forms.plural).trim() : undefined,
+        v2: forms.v2 ? String(forms.v2).trim() : undefined,
+        v3: forms.v3 ? String(forms.v3).trim() : undefined,
+        v_ing: (forms.v_ing || forms.vIng) ? String(forms.v_ing || forms.vIng).trim() : undefined,
+        v_s_es: (forms.v_s_es || forms.vSes) ? String(forms.v_s_es || forms.vSes).trim() : undefined,
+        comparative: forms.comparative ? String(forms.comparative).trim() : undefined,
+        superlative: forms.superlative ? String(forms.superlative).trim() : undefined,
       },
       synonyms: (data.synonyms || []).map((item: any) => ({
         word: item.word || '',
@@ -46,10 +56,21 @@ const StudyExtendedAnalysis: React.FC<StudyExtendedAnalysisProps> = ({ extendedD
     { label: 'Tính từ (Adjective)', values: analysis.wordFamily?.adjective || [] },
   ].filter((row) => row.values.length > 0);
 
+  const formRows = [
+    { label: 'V2 (Quá khứ)', value: analysis.forms?.v2 },
+    { label: 'V3 (Phân từ II)', value: analysis.forms?.v3 },
+    { label: 'V-ing', value: analysis.forms?.v_ing },
+    { label: 'V(s/es)', value: analysis.forms?.v_s_es },
+    { label: 'Số nhiều (Plural)', value: analysis.forms?.plural },
+    { label: 'So sánh hơn', value: analysis.forms?.comparative },
+    { label: 'So sánh nhất', value: analysis.forms?.superlative },
+  ].filter((row): row is { label: string; value: string } => Boolean(row.value));
+
   const hasData =
     analysis.meaningVi ||
     analysis.baseWord ||
     familyRows.length > 0 ||
+    formRows.length > 0 ||
     (analysis.synonyms && analysis.synonyms.length > 0);
 
   if (!hasData) return null;
@@ -59,6 +80,18 @@ const StudyExtendedAnalysis: React.FC<StudyExtendedAnalysisProps> = ({ extendedD
       <Text style={styles.analysisHeader}>Phân tích mở rộng</Text>
       {!!analysis.baseWord && <Text style={styles.analysisSummary}>Từ gốc: {analysis.baseWord}</Text>}
       {!!analysis.meaningVi && <Text style={styles.analysisSummary}>Nghĩa: {analysis.meaningVi}</Text>}
+
+      {formRows.length > 0 ? (
+        <View style={styles.analysisBlock}>
+          <Text style={styles.analysisTitle}>Dạng biến thể (Word Forms)</Text>
+          {formRows.map((row) => (
+            <View key={row.label} style={styles.tableRow}>
+              <Text style={styles.tableLabel}>{row.label}</Text>
+              <Text style={styles.tableValue}>{row.value}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
 
       {analysis.language === 'english' && familyRows.length > 0 ? (
         <View style={styles.analysisBlock}>
@@ -127,7 +160,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   tableLabel: {
-    width: 76,
+    width: 110,
     color: COLORS.text,
     fontSize: 12,
     fontWeight: '900',

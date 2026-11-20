@@ -17,6 +17,16 @@ export interface CreateStudyDeckPayload {
   language?: string;
 }
 
+export interface WordFormsData {
+  plural?: string;
+  v2?: string;
+  v3?: string;
+  v_ing?: string;
+  v_s_es?: string;
+  comparative?: string;
+  superlative?: string;
+}
+
 export interface StudyCard {
   id: number;
   deckId: number;

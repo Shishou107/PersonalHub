@@ -62,6 +62,16 @@ export interface AiVocabularyResponseData {
   tags: string[];
 }
 
+export interface AiVocabularyFormsData {
+  plural?: string;
+  v2?: string;
+  v3?: string;
+  v_ing?: string;
+  v_s_es?: string;
+  comparative?: string;
+  superlative?: string;
+}
+
 export interface AiVocabularyAnalyzeResponseData {
   language: string;
   input: string;
@@ -73,6 +83,7 @@ export interface AiVocabularyAnalyzeResponseData {
     adjective: string[];
     adverb: string[];
   };
+  forms?: AiVocabularyFormsData;
   synonyms: Array<{
     word: string;
     reading?: string;
