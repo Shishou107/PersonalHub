@@ -86,6 +86,11 @@ namespace AiDailyExpense.Api.Services
             var legacyHash = ComputeSha256Hash(userId.ToString() + "_" + rawText);
             var receivedAt = request.ReceivedAt ?? DateTime.UtcNow;
 
+            if (receivedAt > DateTime.UtcNow.AddMinutes(10))
+            {
+                throw new ArgumentException("Thời gian giao dịch không được ở tương lai.");
+            }
+
             var existingBeforeAi = await FindExistingNotificationAsync(userId, rawText, hash, legacyHash, receivedAt);
             if (existingBeforeAi != null)
             {
@@ -102,7 +107,7 @@ namespace AiDailyExpense.Api.Services
 
             if (parsed.Amount <= 0)
             {
-                throw new ArgumentException("Không thể phân tích số tiền hợp lệ từ thông báo.");
+                throw new ArgumentException("Số tiền giao dịch phải lớn hơn 0.");
             }
 
             var existing = await FindExistingNotificationAsync(userId, rawText, hash, legacyHash, receivedAt);
@@ -118,29 +123,46 @@ namespace AiDailyExpense.Api.Services
                 return ToDto(existing);
             }
 
-            var tx = new BankTransaction
+            var executionStrategy = _context.Database.CreateExecutionStrategy();
+            return await executionStrategy.ExecuteAsync(async () =>
             {
-                UserId = userId,
-                BankName = request.BankName ?? "Ngân hàng",
-                AccountLabel = ExtractAccountLabel(rawText) ?? "Tài khoản giả lập",
-                TransactionType = parsed.TransactionType,
-                Amount = parsed.Amount,
-                Currency = "VND",
-                Description = parsed.Description,
-                CategoryId = parsed.CategoryId,
-                TransactionTime = receivedAt,
-                Source = "Notification",
-                RawMessage = rawText,
-                RawMessageHash = hash,
-                IsConfirmed = true,
-                CreatedAt = DateTime.UtcNow
-            };
+                var hasExistingTransaction = _context.Database.CurrentTransaction != null;
+                await using var dbTransaction = hasExistingTransaction ? null : await _context.Database.BeginTransactionAsync();
 
-            _context.BankTransactions.Add(tx);
-            await _context.SaveChangesAsync();
+                var tx = new BankTransaction
+                {
+                    UserId = userId,
+                    BankName = request.BankName ?? "Ngân hàng",
+                    AccountLabel = ExtractAccountLabel(rawText) ?? "Tài khoản",
+                    TransactionType = parsed.TransactionType,
+                    Amount = parsed.Amount,
+                    Currency = "VND",
+                    Description = parsed.Description,
+                    CategoryId = parsed.CategoryId,
+                    TransactionTime = receivedAt,
+                    Source = "Notification",
+                    RawMessage = rawText,
+                    RawMessageHash = hash,
+                    IsConfirmed = true,
+                    CreatedAt = DateTime.UtcNow
+                };
 
-            try
-            {
+                _context.BankTransactions.Add(tx);
+                try
+                {
+                    await _context.SaveChangesAsync();
+                }
+                catch (DbUpdateException)
+                {
+                    if (dbTransaction != null) await dbTransaction.RollbackAsync();
+                    var existingAfterConflict = await FindExistingNotificationAsync(userId, rawText, hash, legacyHash, receivedAt);
+                    if (existingAfterConflict != null)
+                    {
+                        return ToDto(existingAfterConflict);
+                    }
+                    throw;
+                }
+
                 var createReq = new CreateExpenseRequest
                 {
                     Title = tx.Description ?? "Chi tiêu từ ngân hàng",
@@ -151,19 +173,21 @@ namespace AiDailyExpense.Api.Services
                     Note = $"Tự động ghi nhận từ thông báo ({tx.BankName})",
                     RawText = tx.RawMessage
                 };
+
                 await _expenseService.CreateExpenseAsync(userId, createReq);
-            }
-            catch (Exception ex)
-            {
-                System.Diagnostics.Debug.WriteLine($"[AutoConfirm] Error creating expense: {ex.Message}");
-            }
 
-            if (tx.CategoryId.HasValue)
-            {
-                tx.Category = await _context.ExpenseCategories.FindAsync(tx.CategoryId.Value);
-            }
+                if (dbTransaction != null)
+                {
+                    await dbTransaction.CommitAsync();
+                }
 
-            return ToDto(tx);
+                if (tx.CategoryId.HasValue)
+                {
+                    tx.Category = await _context.ExpenseCategories.FindAsync(tx.CategoryId.Value);
+                }
+
+                return ToDto(tx);
+            });
         }
 
         private async Task<BankTransaction?> FindExistingNotificationAsync(
@@ -203,7 +227,35 @@ namespace AiDailyExpense.Api.Services
                     throw new InvalidOperationException("Giao dịch này đã được xác nhận trước đó.");
                 }
 
+                if (tx.Amount <= 0)
+                {
+                    throw new ArgumentException("Số tiền giao dịch phải lớn hơn 0.");
+                }
+
                 int? categoryId = request.CategoryId ?? tx.CategoryId;
+                if (!categoryId.HasValue)
+                {
+                    if (string.Equals(tx.TransactionType, "Income", StringComparison.OrdinalIgnoreCase))
+                    {
+                        categoryId = await FindCategoryIdAsync(userId, "Thu nhập khác", "Income");
+                    }
+                    else
+                    {
+                        categoryId = await FindCategoryIdAsync(userId, "Khác", "Expense");
+                    }
+                }
+
+                // Atomic update: only one concurrent thread can flip IsConfirmed from false to true
+                var affected = await _context.BankTransactions
+                    .Where(t => t.UserId == userId && t.BankTransactionId == bankTransactionId && !t.IsConfirmed)
+                    .ExecuteUpdateAsync(s => s
+                        .SetProperty(t => t.IsConfirmed, true)
+                        .SetProperty(t => t.CategoryId, categoryId));
+
+                if (affected == 0)
+                {
+                    throw new InvalidOperationException("Giao dịch này đã được xác nhận trước đó.");
+                }
 
                 var createReq = new CreateExpenseRequest
                 {
@@ -220,10 +272,6 @@ namespace AiDailyExpense.Api.Services
                 await using var transaction = hasExistingTransaction ? null : await _context.Database.BeginTransactionAsync();
 
                 var expense = await _expenseService.CreateExpenseAsync(userId, createReq);
-
-                tx.IsConfirmed = true;
-                tx.CategoryId = categoryId;
-                await _context.SaveChangesAsync();
 
                 if (transaction != null)
                 {
@@ -248,7 +296,9 @@ namespace AiDailyExpense.Api.Services
                     .FirstOrDefaultAsync(e => e.UserId == userId && e.RawText == tx.RawMessage);
                 if (expense != null)
                 {
+                    // DeleteExpenseAsync automatically removes the bank transaction with matching RawText and balance
                     await _expenseService.DeleteExpenseAsync(userId, expense.ExpenseId);
+                    return true;
                 }
             }
 
@@ -274,7 +324,7 @@ namespace AiDailyExpense.Api.Services
 
             var amount = aiResult.Amount > 0 ? aiResult.Amount : MoneyParser.Parse(rawText);
             var type = aiResult.TransactionType == "Unknown" ? DetectTransactionType(rawText) : aiResult.TransactionType;
-            var categoryId = await SuggestExpenseCategoryIdAsync(userId, rawText, aiResult.CategoryName);
+            var categoryId = await SuggestExpenseCategoryIdAsync(userId, rawText, aiResult.CategoryName, type);
             var description = !string.IsNullOrWhiteSpace(aiResult.Description)
                 ? aiResult.Description
                 : ExtractDescription(rawText, aiResult.Title);
@@ -310,9 +360,25 @@ namespace AiDailyExpense.Api.Services
             return "Unknown";
         }
 
-        private async Task<int?> SuggestExpenseCategoryIdAsync(Guid userId, string rawText, string? aiCategoryName)
+        private async Task<int?> SuggestExpenseCategoryIdAsync(Guid userId, string rawText, string? aiCategoryName, string transactionType = "Unknown")
         {
-            var aiCategoryId = await FindCategoryIdAsync(userId, aiCategoryName);
+            var isIncome = string.Equals(transactionType, "Income", StringComparison.OrdinalIgnoreCase);
+
+            if (isIncome)
+            {
+                var aiIncomeCatId = await FindCategoryIdAsync(userId, aiCategoryName, "Income");
+                if (aiIncomeCatId.HasValue) return aiIncomeCatId;
+
+                var lowerText = rawText.ToLowerInvariant();
+                if (lowerText.Contains("luong") || lowerText.Contains("lương") || lowerText.Contains("salary"))
+                {
+                    return await FindCategoryIdAsync(userId, "Lương", "Income");
+                }
+
+                return await FindCategoryIdAsync(userId, "Thu nhập khác", "Income");
+            }
+
+            var aiCategoryId = await FindCategoryIdAsync(userId, aiCategoryName, "Expense");
             if (aiCategoryId.HasValue) return aiCategoryId;
 
             var text = rawText.ToLowerInvariant();
@@ -335,7 +401,7 @@ namespace AiDailyExpense.Api.Services
                 return await FindCategoryIdAsync(userId, "Mua sắm", "Expense");
             }
 
-            return null;
+            return await FindCategoryIdAsync(userId, "Khác", "Expense");
         }
 
         private async Task<int?> FindCategoryIdAsync(Guid userId, string? categoryName, string? type = null)

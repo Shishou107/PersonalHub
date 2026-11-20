@@ -166,6 +166,16 @@ namespace AiDailyExpense.Api.Services
 
         public async Task<ExpenseDto> CreateExpenseAsync(Guid userId, CreateExpenseRequest request)
         {
+            if (request.Amount <= 0)
+            {
+                throw new ArgumentException("Số tiền phải lớn hơn 0.");
+            }
+
+            if (request.SpentAt > DateTime.UtcNow.AddMinutes(10))
+            {
+                throw new ArgumentException("Thời gian chi tiêu không được ở tương lai.");
+            }
+
             if (request.CategoryId.HasValue)
             {
                 var catExists = await _context.ExpenseCategories.AnyAsync(c => c.CategoryId == request.CategoryId.Value && (c.UserId == null || c.UserId == userId));
@@ -245,6 +255,16 @@ namespace AiDailyExpense.Api.Services
 
         public async Task<ExpenseDto> UpdateExpenseAsync(Guid userId, long expenseId, UpdateExpenseRequest request)
         {
+            if (request.Amount <= 0)
+            {
+                throw new ArgumentException("Số tiền phải lớn hơn 0.");
+            }
+
+            if (request.SpentAt > DateTime.UtcNow.AddMinutes(10))
+            {
+                throw new ArgumentException("Thời gian chi tiêu không được ở tương lai.");
+            }
+
             if (request.CategoryId.HasValue)
             {
                 var catExists = await _context.ExpenseCategories.AnyAsync(c => c.CategoryId == request.CategoryId.Value && (c.UserId == null || c.UserId == userId));

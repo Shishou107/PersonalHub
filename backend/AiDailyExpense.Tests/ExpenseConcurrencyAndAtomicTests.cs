@@ -579,5 +579,292 @@ namespace AiDailyExpense.Tests
                 Assert.Equal("Transfer", expenses[0].PaymentMethod);
             }
         }
+
+        [Fact]
+        public async Task BankTransactionService_ConfirmTransactionAsync_DoubleConfirm_ThrowsInvalidOperationException()
+        {
+            var userId = Guid.NewGuid();
+            long bankTxId;
+
+            using (var seedContext = CreateContext())
+            {
+                var user = new User
+                {
+                    UserId = userId,
+                    FullName = "Double Confirm User",
+                    Email = "double@example.com",
+                    CashBalance = 0,
+                    BankBalance = 5_000_000m,
+                    HasInitializedBalance = true,
+                    CreatedAt = DateTime.UtcNow
+                };
+                var category = new ExpenseCategory
+                {
+                    CategoryId = 10,
+                    UserId = userId,
+                    Name = "Ăn uống",
+                    Type = "Expense",
+                    CreatedAt = DateTime.UtcNow
+                };
+                var bankTx = new BankTransaction
+                {
+                    UserId = userId,
+                    BankName = "Vietcombank",
+                    Amount = 200_000m,
+                    Description = "Cafe",
+                    IsConfirmed = false,
+                    TransactionTime = DateTime.UtcNow,
+                    CreatedAt = DateTime.UtcNow
+                };
+                seedContext.Users.Add(user);
+                seedContext.ExpenseCategories.Add(category);
+                seedContext.BankTransactions.Add(bankTx);
+                await seedContext.SaveChangesAsync();
+                bankTxId = bankTx.BankTransactionId;
+            }
+
+            using (var confirmContext = CreateContext())
+            {
+                var expenseService = new ExpenseService(confirmContext);
+                var bankService = new BankTransactionService(confirmContext, expenseService, null!);
+                await bankService.ConfirmTransactionAsync(userId, bankTxId, new ConfirmBankTransactionRequest { CategoryId = 10 });
+
+                // Second confirmation should throw InvalidOperationException
+                var ex = await Assert.ThrowsAsync<InvalidOperationException>(() =>
+                    bankService.ConfirmTransactionAsync(userId, bankTxId, new ConfirmBankTransactionRequest { CategoryId = 10 }));
+
+                Assert.Equal("Giao dịch này đã được xác nhận trước đó.", ex.Message);
+            }
+
+            // Verify balance only deducted once
+            using (var verifyContext = CreateContext())
+            {
+                var user = await verifyContext.Users.FindAsync(userId);
+                Assert.NotNull(user);
+                Assert.Equal(4_800_000m, user.BankBalance);
+            }
+        }
+
+        [Fact]
+        public async Task BankTransactionService_ConfirmTransactionAsync_IncomeTransaction_IncreasesBankBalance()
+        {
+            var userId = Guid.NewGuid();
+            long bankTxId;
+
+            using (var seedContext = CreateContext())
+            {
+                var user = new User
+                {
+                    UserId = userId,
+                    FullName = "Income User",
+                    Email = "income@example.com",
+                    CashBalance = 0,
+                    BankBalance = 5_000_000m,
+                    HasInitializedBalance = true,
+                    CreatedAt = DateTime.UtcNow
+                };
+                var incomeCategory = new ExpenseCategory
+                {
+                    CategoryId = 20,
+                    UserId = userId,
+                    Name = "Lương",
+                    Type = "Income",
+                    CreatedAt = DateTime.UtcNow
+                };
+                var bankTx = new BankTransaction
+                {
+                    UserId = userId,
+                    BankName = "Techcombank",
+                    Amount = 10_000_000m,
+                    TransactionType = "Income",
+                    Description = "Nhan luong thang",
+                    IsConfirmed = false,
+                    TransactionTime = DateTime.UtcNow,
+                    CreatedAt = DateTime.UtcNow
+                };
+                seedContext.Users.Add(user);
+                seedContext.ExpenseCategories.Add(incomeCategory);
+                seedContext.BankTransactions.Add(bankTx);
+                await seedContext.SaveChangesAsync();
+                bankTxId = bankTx.BankTransactionId;
+            }
+
+            using (var confirmContext = CreateContext())
+            {
+                var expenseService = new ExpenseService(confirmContext);
+                var bankService = new BankTransactionService(confirmContext, expenseService, null!);
+                var expense = await bankService.ConfirmTransactionAsync(userId, bankTxId, new ConfirmBankTransactionRequest { CategoryId = 20 });
+
+                Assert.NotNull(expense);
+                Assert.Equal(10_000_000m, expense.Amount);
+            }
+
+            // Verify: BankBalance INCREASED from 5M to 15M
+            using (var verifyContext = CreateContext())
+            {
+                var user = await verifyContext.Users.FindAsync(userId);
+                Assert.NotNull(user);
+                Assert.Equal(15_000_000m, user.BankBalance);
+            }
+        }
+
+        [Fact]
+        public async Task BankTransactionService_DeleteTransactionAsync_WithLinkedExpense_DeletesCleanlyWithoutDoubleDelete()
+        {
+            var userId = Guid.NewGuid();
+            long bankTxId;
+
+            using (var seedContext = CreateContext())
+            {
+                var user = new User
+                {
+                    UserId = userId,
+                    FullName = "Delete User",
+                    Email = "del@example.com",
+                    CashBalance = 0,
+                    BankBalance = 5_000_000m,
+                    HasInitializedBalance = true,
+                    CreatedAt = DateTime.UtcNow
+                };
+                var category = new ExpenseCategory
+                {
+                    CategoryId = 30,
+                    UserId = userId,
+                    Name = "Khác",
+                    Type = "Expense",
+                    CreatedAt = DateTime.UtcNow
+                };
+                var rawMessage = "NOTIFICATION_TEST_RAW_MSG_123";
+                var bankTx = new BankTransaction
+                {
+                    UserId = userId,
+                    BankName = "MBBank",
+                    Amount = 100_000m,
+                    Description = "Test item",
+                    RawMessage = rawMessage,
+                    IsConfirmed = true,
+                    TransactionTime = DateTime.UtcNow,
+                    CreatedAt = DateTime.UtcNow
+                };
+                var expense = new Expense
+                {
+                    UserId = userId,
+                    CategoryId = 30,
+                    Title = "Test item",
+                    Amount = 100_000m,
+                    PaymentMethod = "Transfer",
+                    RawText = rawMessage,
+                    SpentAt = DateTime.UtcNow,
+                    CreatedAt = DateTime.UtcNow
+                };
+                seedContext.Users.Add(user);
+                seedContext.ExpenseCategories.Add(category);
+                seedContext.BankTransactions.Add(bankTx);
+                seedContext.Expenses.Add(expense);
+                await seedContext.SaveChangesAsync();
+                bankTxId = bankTx.BankTransactionId;
+            }
+
+            using (var deleteContext = CreateContext())
+            {
+                var expenseService = new ExpenseService(deleteContext);
+                var bankService = new BankTransactionService(deleteContext, expenseService, null!);
+
+                // Should succeed cleanly without throwing DbUpdateConcurrencyException
+                var deleted = await bankService.DeleteTransactionAsync(userId, bankTxId);
+                Assert.True(deleted);
+            }
+
+            // Verify both are deleted
+            using (var verifyContext = CreateContext())
+            {
+                var tx = await verifyContext.BankTransactions.FindAsync(bankTxId);
+                Assert.Null(tx);
+
+                var expenses = await verifyContext.Expenses.Where(e => e.UserId == userId).ToListAsync();
+                Assert.Empty(expenses);
+            }
+        }
+
+        [Fact]
+        public async Task ExpenseService_Validation_RejectsInvalidAmountAndFutureSpentAt()
+        {
+            var userId = Guid.NewGuid();
+            using var context = CreateContext();
+
+            var user = new User
+            {
+                UserId = userId,
+                FullName = "Val User",
+                Email = "val@example.com",
+                CashBalance = 1_000_000m,
+                BankBalance = 1_000_000m,
+                HasInitializedBalance = true,
+                CreatedAt = DateTime.UtcNow
+            };
+            context.Users.Add(user);
+            await context.SaveChangesAsync();
+
+            var expenseService = new ExpenseService(context);
+
+            // Negative amount
+            var exZero = await Assert.ThrowsAsync<ArgumentException>(() =>
+                expenseService.CreateExpenseAsync(userId, new CreateExpenseRequest
+                {
+                    Title = "Zero Amount",
+                    Amount = 0,
+                    SpentAt = DateTime.UtcNow
+                }));
+            Assert.Equal("Số tiền phải lớn hơn 0.", exZero.Message);
+
+            // Future date
+            var exFuture = await Assert.ThrowsAsync<ArgumentException>(() =>
+                expenseService.CreateExpenseAsync(userId, new CreateExpenseRequest
+                {
+                    Title = "Future Expense",
+                    Amount = 50_000m,
+                    SpentAt = DateTime.UtcNow.AddDays(1)
+                }));
+            Assert.Equal("Thời gian chi tiêu không được ở tương lai.", exFuture.Message);
+        }
+
+        [Fact]
+        public async Task BankTransaction_UniqueHashConstraint_ThrowsDbUpdateException()
+        {
+            var userId = Guid.NewGuid();
+            using var context = CreateContext();
+
+            var user = new User
+            {
+                UserId = userId,
+                FullName = "Hash User",
+                Email = "hash@example.com",
+                CreatedAt = DateTime.UtcNow
+            };
+            context.Users.Add(user);
+
+            var tx1 = new BankTransaction
+            {
+                UserId = userId,
+                BankName = "Bank1",
+                Amount = 100_000m,
+                RawMessageHash = "UNIQUE_HASH_12345",
+                CreatedAt = DateTime.UtcNow
+            };
+            var tx2 = new BankTransaction
+            {
+                UserId = userId,
+                BankName = "Bank2",
+                Amount = 200_000m,
+                RawMessageHash = "UNIQUE_HASH_12345",
+                CreatedAt = DateTime.UtcNow
+            };
+
+            context.BankTransactions.Add(tx1);
+            await context.SaveChangesAsync();
+
+            context.BankTransactions.Add(tx2);
+            await Assert.ThrowsAsync<DbUpdateException>(() => context.SaveChangesAsync());
+        }
     }
 }

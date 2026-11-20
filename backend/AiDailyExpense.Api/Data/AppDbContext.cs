@@ -180,7 +180,7 @@ namespace AiDailyExpense.Api.Data
 
                 entity.HasIndex(e => new { e.UserId, e.TransactionTime }).HasDatabaseName("IX_BankTransactions_User_Time");
                 entity.HasIndex(e => new { e.UserId, e.TransactionType }).HasDatabaseName("IX_BankTransactions_User_Type");
-                entity.HasIndex(e => new { e.UserId, e.RawMessageHash }).HasDatabaseName("IX_BankTransactions_User_RawHash");
+                entity.HasIndex(e => new { e.UserId, e.RawMessageHash }).IsUnique().HasDatabaseName("IX_BankTransactions_User_RawHash");
             });
 
             // DeviceToken configuration

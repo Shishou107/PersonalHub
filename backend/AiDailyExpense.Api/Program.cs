@@ -274,6 +274,14 @@ IF OBJECT_ID('StudyCards', 'U') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM sys.in
 BEGIN
     CREATE UNIQUE INDEX [IX_StudyCards_Deck_NormalizedText] ON [StudyCards] ([DeckId], [NormalizedText]) WHERE [NormalizedText] IS NOT NULL;
 END
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BankTransactions_User_RawHash' AND object_id = OBJECT_ID('BankTransactions') AND is_unique = 0)
+BEGIN
+    DROP INDEX [IX_BankTransactions_User_RawHash] ON [BankTransactions];
+END
+IF OBJECT_ID('BankTransactions', 'U') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_BankTransactions_User_RawHash' AND object_id = OBJECT_ID('BankTransactions'))
+BEGIN
+    CREATE UNIQUE INDEX [IX_BankTransactions_User_RawHash] ON [BankTransactions] ([UserId], [RawMessageHash]) WHERE [RawMessageHash] IS NOT NULL;
+END
 IF OBJECT_ID('StudyReviews', 'U') IS NULL
 BEGIN
     CREATE TABLE [StudyReviews] (
