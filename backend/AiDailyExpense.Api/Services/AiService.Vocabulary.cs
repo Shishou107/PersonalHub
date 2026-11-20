@@ -156,12 +156,20 @@ namespace AiDailyExpense.Api.Services
             parsed.Language = string.IsNullOrWhiteSpace(parsed.Language) ? language : ResolveVocabularyDeckLanguage(parsed.Language, null, null);
             parsed.Input = string.IsNullOrWhiteSpace(parsed.Input) ? word : parsed.Input.Trim();
             parsed.MeaningVi = parsed.MeaningVi?.Trim() ?? "";
-            parsed.BaseWord = parsed.BaseWord?.Trim() ?? "";
+            parsed.BaseWord = string.IsNullOrWhiteSpace(parsed.BaseWord) ? word.Trim() : parsed.BaseWord.Trim();
             parsed.WordFamily ??= new AiVocabularyWordFamilyDto();
             parsed.WordFamily.Noun = CleanStringList(parsed.WordFamily.Noun);
             parsed.WordFamily.Verb = CleanStringList(parsed.WordFamily.Verb);
             parsed.WordFamily.Adjective = CleanStringList(parsed.WordFamily.Adjective);
             parsed.WordFamily.Adverb = CleanStringList(parsed.WordFamily.Adverb);
+            parsed.Forms ??= new AiVocabularyFormsDto();
+            parsed.Forms.Plural = CleanFormValue(parsed.Forms.Plural);
+            parsed.Forms.V2 = CleanFormValue(parsed.Forms.V2);
+            parsed.Forms.V3 = CleanFormValue(parsed.Forms.V3);
+            parsed.Forms.VIng = CleanFormValue(parsed.Forms.VIng);
+            parsed.Forms.VSes = CleanFormValue(parsed.Forms.VSes);
+            parsed.Forms.Comparative = CleanFormValue(parsed.Forms.Comparative);
+            parsed.Forms.Superlative = CleanFormValue(parsed.Forms.Superlative);
             parsed.Synonyms = parsed.Synonyms?
                 .Where(item => item != null && (!string.IsNullOrWhiteSpace(item.Word) || !string.IsNullOrWhiteSpace(item.MeaningVi)))
                 .Select(item => new AiVocabularySynonymDto
@@ -175,6 +183,13 @@ namespace AiDailyExpense.Api.Services
                 .ToList() ?? new List<AiVocabularySynonymDto>();
 
             return parsed;
+        }
+
+        private static string? CleanFormValue(string? val)
+        {
+            if (string.IsNullOrWhiteSpace(val)) return null;
+            var trimmed = val.Trim();
+            return trimmed.Length == 0 ? null : trimmed;
         }
 
         private static List<string> CleanStringList(List<string>? values)
@@ -202,6 +217,7 @@ namespace AiDailyExpense.Api.Services
                     MeaningVi = "là; thì; trợ động từ lịch sự dùng cuối câu",
                     BaseWord = "",
                     WordFamily = new AiVocabularyWordFamilyDto(),
+                    Forms = new AiVocabularyFormsDto(),
                     Synonyms = new List<AiVocabularySynonymDto>
                     {
                         new()
@@ -231,6 +247,7 @@ namespace AiDailyExpense.Api.Services
                     MeaningVi = "tôi",
                     BaseWord = "",
                     WordFamily = new AiVocabularyWordFamilyDto(),
+                    Forms = new AiVocabularyFormsDto(),
                     Synonyms = new List<AiVocabularySynonymDto>
                     {
                         new()
@@ -256,8 +273,9 @@ namespace AiDailyExpense.Api.Services
                 Language = normalized,
                 Input = trimmed,
                 MeaningVi = "",
-                BaseWord = "",
+                BaseWord = trimmed,
                 WordFamily = new AiVocabularyWordFamilyDto(),
+                Forms = new AiVocabularyFormsDto(),
                 Synonyms = new List<AiVocabularySynonymDto>()
             };
         }

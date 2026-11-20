@@ -50,7 +50,33 @@ namespace AiDailyExpense.Api.DTOs.Ai
         public string BaseWord { get; set; } = string.Empty;
         [JsonPropertyName("word_family")]
         public AiVocabularyWordFamilyDto WordFamily { get; set; } = new();
+        [JsonPropertyName("forms")]
+        public AiVocabularyFormsDto Forms { get; set; } = new();
         public List<AiVocabularySynonymDto> Synonyms { get; set; } = new();
+    }
+
+    public class AiVocabularyFormsDto
+    {
+        [JsonPropertyName("plural")]
+        public string? Plural { get; set; }
+
+        [JsonPropertyName("v2")]
+        public string? V2 { get; set; }
+
+        [JsonPropertyName("v3")]
+        public string? V3 { get; set; }
+
+        [JsonPropertyName("v_ing")]
+        public string? VIng { get; set; }
+
+        [JsonPropertyName("v_s_es")]
+        public string? VSes { get; set; }
+
+        [JsonPropertyName("comparative")]
+        public string? Comparative { get; set; }
+
+        [JsonPropertyName("superlative")]
+        public string? Superlative { get; set; }
     }
 
     public class AiVocabularyWordFamilyDto
