@@ -133,14 +133,36 @@ namespace AiDailyExpense.Api.Services
                 throw new KeyNotFoundException("Khong tim thay bo the.");
             }
 
-            var normalizedText = NormalizeStudyText(request.NormalizedText ?? request.FrontText);
+            string textToNormalize = request.FrontText;
+            if (!string.IsNullOrWhiteSpace(request.ExtendedData))
+            {
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(request.ExtendedData);
+                    var root = doc.RootElement;
+                    if (root.TryGetProperty("base_word", out var bwProp) && bwProp.ValueKind == System.Text.Json.JsonValueKind.String && !string.IsNullOrWhiteSpace(bwProp.GetString()))
+                    {
+                        textToNormalize = bwProp.GetString()!;
+                    }
+                    else if (root.TryGetProperty("baseWord", out var bwCamel) && bwCamel.ValueKind == System.Text.Json.JsonValueKind.String && !string.IsNullOrWhiteSpace(bwCamel.GetString()))
+                    {
+                        textToNormalize = bwCamel.GetString()!;
+                    }
+                }
+                catch
+                {
+                    // Fallback to front text if extendedData is not JSON
+                }
+            }
+
+            var normalizedText = NormalizeStudyText(textToNormalize);
             var duplicateExists = await _context.StudyCards
                 .AnyAsync(c => c.DeckId == request.DeckId &&
                     (c.NormalizedText == normalizedText || c.FrontText.ToLower() == normalizedText));
 
             if (duplicateExists)
             {
-                throw new ArgumentException("The hoc nay da ton tai trong bo the.");
+                throw new ArgumentException("Thẻ học này đã tồn tại trong bộ thẻ.");
             }
 
             var card = new StudyCard
@@ -160,7 +182,14 @@ namespace AiDailyExpense.Api.Services
             };
 
             _context.StudyCards.Add(card);
-            await _context.SaveChangesAsync();
+            try
+            {
+                await _context.SaveChangesAsync();
+            }
+            catch (DbUpdateException)
+            {
+                throw new ArgumentException("Thẻ học này đã tồn tại trong bộ thẻ.");
+            }
 
             card.Deck = deck;
             return ToCardDto(card);

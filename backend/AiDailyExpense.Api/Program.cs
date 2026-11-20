@@ -256,7 +256,7 @@ BEGIN
     );
     CREATE INDEX [IX_StudyCards_DeckId] ON [StudyCards] ([DeckId]);
     CREATE INDEX [IX_StudyCards_Deck_Type] ON [StudyCards] ([DeckId], [CardType]);
-    CREATE INDEX [IX_StudyCards_Deck_NormalizedText] ON [StudyCards] ([DeckId], [NormalizedText]);
+    CREATE UNIQUE INDEX [IX_StudyCards_Deck_NormalizedText] ON [StudyCards] ([DeckId], [NormalizedText]) WHERE [NormalizedText] IS NOT NULL;
 END
 IF OBJECT_ID('StudyCards', 'U') IS NOT NULL AND COL_LENGTH('StudyCards', 'ExtendedData') IS NULL
 BEGIN
@@ -266,9 +266,13 @@ IF OBJECT_ID('StudyCards', 'U') IS NOT NULL AND COL_LENGTH('StudyCards', 'Normal
 BEGIN
     ALTER TABLE [StudyCards] ADD [NormalizedText] nvarchar(300) NULL;
 END
+IF EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_StudyCards_Deck_NormalizedText' AND object_id = OBJECT_ID('StudyCards') AND is_unique = 0)
+BEGIN
+    DROP INDEX [IX_StudyCards_Deck_NormalizedText] ON [StudyCards];
+END
 IF OBJECT_ID('StudyCards', 'U') IS NOT NULL AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name = 'IX_StudyCards_Deck_NormalizedText' AND object_id = OBJECT_ID('StudyCards'))
 BEGIN
-    CREATE INDEX [IX_StudyCards_Deck_NormalizedText] ON [StudyCards] ([DeckId], [NormalizedText]);
+    CREATE UNIQUE INDEX [IX_StudyCards_Deck_NormalizedText] ON [StudyCards] ([DeckId], [NormalizedText]) WHERE [NormalizedText] IS NOT NULL;
 END
 IF OBJECT_ID('StudyReviews', 'U') IS NULL
 BEGIN

@@ -296,7 +296,7 @@ namespace AiDailyExpense.Api.Data
 
                 entity.HasIndex(e => e.DeckId).HasDatabaseName("IX_StudyCards_DeckId");
                 entity.HasIndex(e => new { e.DeckId, e.CardType }).HasDatabaseName("IX_StudyCards_Deck_Type");
-                entity.HasIndex(e => new { e.DeckId, e.NormalizedText }).HasDatabaseName("IX_StudyCards_Deck_NormalizedText");
+                entity.HasIndex(e => new { e.DeckId, e.NormalizedText }).IsUnique().HasDatabaseName("IX_StudyCards_Deck_NormalizedText");
             });
 
             modelBuilder.Entity<StudyReview>(entity =>
